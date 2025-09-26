@@ -2,7 +2,7 @@ const env = import.meta.env;
 
 export const config = {
   api: {
-    baseUrl: (env.VITE_API_BASE_URL || 'http://localhost:5001').replace(/\/+$/, ''),
+    baseUrl: (env.VITE_API_BASE_URL || 'https://blogging-website-lyart.vercel.app').replace(/\/+$/, ''),
     version: 'v1',
     timeout: 30000,
     defaultHeaders: {
