@@ -6,12 +6,15 @@
   "description": "Blogging Application with MERN Stack",
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",
     "preview": "vite preview --port 4173",
     "start": "vite preview --port $PORT",
-    "vercel-build": "npm install --legacy-peer-deps --no-optional && npm install buffer process stream-browserify path-browserify util crypto-browserify stream-http https-browserify os-browserify assert && npm run build"
+    "vercel-build": "npm install --legacy-peer-deps --no-optional && npm install prop-types buffer process stream-browserify path-browserify util crypto-browserify stream-http https-browserify os-browserify assert && npm run build"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
@@ -36,6 +39,7 @@
     "path-browserify": "^1.0.1",
     "postcss": "^8.4.29",
     "process": "^0.11.10",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.28.0",
@@ -55,26 +59,27 @@
     "@types/node": "^20.8.10",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react": "^7.33.2",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.25.1",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.4",
+    "eslint-plugin-react-refresh": "^0.4.6",
     "typescript": "^5.2.2"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "browserslist": [
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not ie <= 11",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
+  "babel": {
+    "presets": [
+      "@babel/preset-env",
+      "@babel/preset-react"
     ]
   }
 }
