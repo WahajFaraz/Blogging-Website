@@ -20,8 +20,24 @@ const config = {
   db: {
     uri: process.env.MONGODB_URI || "mongodb+srv://admin_00:0QHFFgpK6ecaP7LB@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     options: {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000, // Add explicit connect timeout
+      maxPoolSize: 10, // Maximum number of connections in the connection pool
+      minPoolSize: 1,  // Minimum number of connections in the connection pool
+      maxIdleTimeMS: 10000, // Maximum time a connection can be idle before being closed
+      retryWrites: true,
+      retryReads: true,
+      // Newer MongoDB driver settings
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      // Auto-reconnect settings
+      autoIndex: false, // Don't build indexes automatically in production
+      // Enable server selection retry
+      serverSelectionTryOnce: false,
+      // Keep the connection alive
+      keepAlive: true,
+      keepAliveInitialDelay: 300000, // 5 minutes
     },
   },
 

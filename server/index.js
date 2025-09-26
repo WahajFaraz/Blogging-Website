@@ -223,23 +223,65 @@ const createApp = () => {
   return app;
 };
 
-// Connect to MongoDB with retry logic
-const connectWithRetry = async (maxRetries = 3, attempt = 1) => {
+// Enhanced MongoDB connection with better error handling and logging
+const connectWithRetry = async (maxRetries = 5, attempt = 1) => {
   try {
-    console.log(`Attempting to connect to MongoDB (${attempt}/${maxRetries})...`);
+    console.log(`🔌 Attempting to connect to MongoDB (${attempt}/${maxRetries})...`);
+    
+    // Log the MongoDB URI (masking credentials for security)
+    const maskedUri = config.db.uri.replace(/(mongodb\+srv:\/\/)([^:]+):([^@]+)@/, 
+      (match, protocol, username) => `${protocol}${username}:*****@`);
+    console.log(`🔗 Connecting to: ${maskedUri}`);
+    
+    // Set up event listeners for connection events
+    mongoose.connection.on('connected', () => {
+      console.log('✅ MongoDB connected successfully');
+    });
+
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err.message);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️  MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('♻️  MongoDB reconnected');
+    });
+
+    // Connect to MongoDB
     await mongoose.connect(config.db.uri, config.db.options);
-    console.log('MongoDB connected successfully');
+    
+    // Verify the connection
+    await mongoose.connection.db.admin().ping();
+    console.log('✅ MongoDB connection verified');
+    
     return true;
   } catch (error) {
-    console.error('MongoDB connection error:', error.message);
+    console.error('❌ MongoDB connection error:', error.message);
     
     if (attempt >= maxRetries) {
-      console.error('Max retries reached. Could not connect to MongoDB.');
+      console.error(`❌ Max retries (${maxRetries}) reached. Could not connect to MongoDB.`);
+      console.error('Please check your MongoDB connection string and network settings.');
+      console.error('Current NODE_ENV:', process.env.NODE_ENV);
+      
+      // Log environment variables (excluding sensitive data)
+      console.log('Environment variables:', {
+        NODE_ENV: process.env.NODE_ENV,
+        MONGODB_URI: process.env.MONGODB_URI ? '***MONGODB_URI is set***' : 'MONGODB_URI is not set',
+        NODE_VERSION: process.version,
+        PLATFORM: process.platform,
+        ARCH: process.arch,
+      });
+      
       return false;
     }
     
-    const delay = 5000;
-    console.log(`Retrying connection in ${delay/1000} seconds...`);
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 16000);
+    console.log(`⏳ Retrying connection in ${delay/1000} seconds...`);
+    
     await new Promise(resolve => setTimeout(resolve, delay));
     return connectWithRetry(maxRetries, attempt + 1);
   }
@@ -247,38 +289,99 @@ const connectWithRetry = async (maxRetries = 3, attempt = 1) => {
 
 const app = createApp();
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = config.server.port;
-  
-  const startServer = async () => {
-    try {
-      await connectWithRetry();
-      app.listen(PORT, () => {
-        console.log(`Server running in ${config.server.nodeEnv} mode on port ${PORT}`);
-      });
-    } catch (error) {
-      console.error('Failed to connect to MongoDB:', error);
+// Unified server startup for both development and production
+const startServer = async () => {
+  try {
+    // Connect to MongoDB first
+    console.log(' Starting server initialization...');
+    console.log(` Environment: ${config.server.nodeEnv}`);
+    
+    const isConnected = await connectWithRetry();
+    
+    if (!isConnected) {
+      console.error(' Critical: Failed to connect to MongoDB after multiple attempts');
+      console.error('Please check the following:');
+      console.error('1. MongoDB connection string is correct');
+      console.error('2. Network connectivity to MongoDB');
+      console.error('3. MongoDB server is running and accessible');
+      console.error('4. Firewall rules allow connections to MongoDB port (usually 27017)');
       process.exit(1);
     }
-  };
-  
+    
+    // Get the appropriate port
+    const PORT = process.env.PORT || config.server.port;
+    
+    // Start the HTTP server
+    const server = app.listen(PORT, () => {
+      console.log(` Server running in ${config.server.nodeEnv} mode on port ${PORT}`);
+      console.log(` Server URL: http://localhost:${PORT}`);
+      console.log(` ${new Date().toISOString()}`);
+      console.log(` Process ID: ${process.pid}`);
+      console.log(` Memory Usage: ${JSON.stringify(process.memoryUsage())}`);
+    });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      if (error.syscall !== 'listen') {
+        throw error;
+      }
+
+      // Handle specific listen errors with friendly messages
+      switch (error.code) {
+        case 'EACCES':
+          console.error(`Port ${PORT} requires elevated privileges`);
+          process.exit(1);
+          break;
+        case 'EADDRINUSE':
+          console.error(`Port ${PORT} is already in use`);
+          process.exit(1);
+          break;
+        default:
+          throw error;
+      }
+    });
+
+    // Handle process termination
+    const gracefulShutdown = async (signal) => {
+      console.log(`\n${signal} received: closing HTTP server`);
+      
+      // Close the server first
+      server.close(async (err) => {
+        if (err) {
+          console.error('Error closing server:', err);
+          process.exit(1);
+        }
+        
+        // Then close the database connection
+        try {
+          await mongoose.connection.close(false);
+          console.log('MongoDB connection closed');
+          process.exit(0);
+        } catch (dbError) {
+          console.error('Error closing database connection:', dbError);
+          process.exit(1);
+        }
+      });
+    };
+
+    // Listen for termination signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    return server;
+  } catch (error) {
+    console.error(' Critical error during server startup:', error);
+    process.exit(1);
+  }
+};
+
+// Start the server if this file is run directly (not required)
+if (require.main === module) {
   startServer().catch(error => {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   });
-} else {
-  // For production (Vercel serverless functions)
-  (async () => {
-    try {
-      await connectWithRetry();
-      console.log('Connected to MongoDB in production');
-    } catch (error) {
-      console.error('Failed to connect to MongoDB in production:', error);
-      process.exit(1);
-    }
-  })();
 }
 
-// Export the Express app for Vercel
-export default app;
+// Export the Express app and startServer for Vercel
+module.exports = { app, startServer };
