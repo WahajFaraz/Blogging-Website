@@ -13,7 +13,7 @@ const config = {
   // Server Configuration
   server: {
     port: process.env.PORT || 5001,
-    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeEnv: process.env.NODE_ENV || 'production',
     clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
   },
 

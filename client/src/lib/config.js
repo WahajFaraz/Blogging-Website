@@ -13,7 +13,7 @@ export const config = {
   
   app: {
     name: env.VITE_APP_NAME || 'BlogSpace',
-    env: env.VITE_APP_ENV || 'development',
+    env: env.VITE_APP_ENV || 'production',
     version: env.VITE_APP_VERSION || '1.0.0',
   },
   

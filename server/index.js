@@ -30,7 +30,7 @@ const createApp = () => {
   }));
 
   // Logging
-  if (config.server.nodeEnv === 'development') {
+  if (config.server.nodeEnv === 'production') {
     app.use(morgan('dev'));
   } else {
     app.use(morgan('combined'));
@@ -43,7 +43,7 @@ const createApp = () => {
       if (!origin) return callback(null, true);
       
       // In development, allow localhost origins
-      if (config.server.nodeEnv === 'development') {
+      if (config.server.nodeEnv === 'production') {
         const allowedOrigins = [
           'http://localhost:3000',
           'http://localhost:5173'
