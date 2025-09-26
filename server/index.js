@@ -375,8 +375,11 @@ const startServer = async () => {
   }
 };
 
-// Start the server if this file is run directly (not required)
-if (require.main === module) {
+// Check if this file is being run directly (not required with ES modules)
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+
+// Start the server if this file is run directly
+if (isDirectRun) {
   startServer().catch(error => {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
@@ -384,4 +387,7 @@ if (require.main === module) {
 }
 
 // Export the Express app and startServer for Vercel
-module.exports = { app, startServer };
+export { app, startServer };
+
+// Default export for Vercel
+export default app;

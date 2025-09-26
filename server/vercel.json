@@ -10,13 +10,15 @@
         "maxDuration": 30,
         "memory": 1024,
         "regions": ["iad1"],
-        "zeroConfig": true
+        "zeroConfig": true,
+        "nodeVersion": "18.x"
       }
     }
   ],
   "build": {
     "env": {
-      "NODE_ENV": "production"
+      "NODE_ENV": "production",
+      "NODE_OPTIONS": "--experimental-specifier-resolution=node"
     }
   },
   "routes": [
