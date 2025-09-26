@@ -33,6 +33,7 @@ export const Navbar = () => {
 
   const navItems = [
     { name: "Home", path: "/", icon: null },
+    { name: "Explore", path: "/explore", icon: null },
     ...(isAuthenticated ? [
       { name: "Create", path: "/create", icon: <Pen className="h-4 w-4" /> },
       { name: "My Posts", path: "/my-posts", icon: <BookOpen className="h-4 w-4" /> }

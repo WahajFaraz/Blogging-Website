@@ -1,171 +1,68 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
-import viteCompression from 'vite-plugin-compression';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'path';
 
-const radixUIComponents = [
-  '@radix-ui/react-avatar',
-  '@radix-ui/react-label',
-  '@radix-ui/react-select',
-  '@radix-ui/react-slot'
-];
-
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const isProduction = mode === 'production';
-  
-  // Set base URL for assets
-  const base = isProduction ? '/' : '/';
-  
-  return {
-    base: base,
-    define: {
-      'process.env': {},
-      'import.meta.env': {
-        ...env,
-        VITE_API_BASE_URL: JSON.stringify(env.VITE_API_BASE_URL || 'https://blogs-backend-ebon.vercel.app/')
-      }
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Required polyfills for Vercel
+      'path': 'path-browserify',
+      'stream': 'stream-browserify',
+      'util': 'util/',
+      'buffer': 'buffer/',
+      'process': 'process/browser',
+      'crypto': 'crypto-browserify',
+      'http': 'stream-http',
+      'https': 'https-browserify',
+      'os': 'os-browserify',
+      'assert': 'assert/'
     },
-    plugins: [
-      react({
-        jsxImportSource: '@emotion/react',
-        babel: {
-          plugins: ['@emotion/babel-plugin'],
-        },
-      }),
-      // Disable compression in Vite config when building for Vercel
-      // Vercel handles compression automatically
-      process.env.VERCEL ? null : viteCompression({
-        algorithm: 'brotli',
-        ext: '.br',
-        filter: (file) => !file.includes('assets/'),
-      }),
-      // Copy _redirects file to the output directory
-      {
-        name: 'copy-redirects',
-        apply: 'build',
-        generateBundle() {
-          this.emitFile({
-            type: 'asset',
-            fileName: '_redirects',
-            source: '/* /index.html 200'
-          });
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
+    target: 'es2020',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Ignore specific warnings
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        if (warning.message?.includes('node:path')) return;
+        if (warning.message?.includes('Use of eval')) return;
+        if (warning.message?.includes('Rollup')) return;
+        // Use default for other warnings
+        warn(warning);
+      },
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['axios', '@tanstack/react-query'],
+          ui: ['@radix-ui/react-avatar', '@radix-ui/react-label', '@radix-ui/react-select', '@radix-ui/react-slot']
         }
-      },
-    ].filter(Boolean),
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, 'src'),
-      },
-      // Ensure consistent module resolution
-      mainFields: ['module', 'jsnext:main', 'jsnext'],
-      extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
-    },
-    // Ensure proper handling of absolute imports
-    publicDir: 'public',
-    server: {
-      port: 5173,
-      proxy: !isProduction ? {
-        '/api/v1': {
-          target: 'https://blogspace-website-git-master-wahaj-farazs-projects.vercel.app/',
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '/api/v1')
-        },
-      } : undefined,
-    },
-    build: {
-      outDir: 'dist',
-      emptyOutDir: true,
-      sourcemap: !isProduction,
-      chunkSizeWarningLimit: 1000,
-      commonjsOptions: {
-        include: [/node_modules/],
-        transformMixedEsModules: true,
-        esmExternals: true,
-        requireReturnsDefault: 'auto'
-      },
-      rollupOptions: {
-        output: {
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('@radix-ui')) {
-                return 'radix';
-              }
-              if (id.includes('framer-motion')) {
-                return 'framer';
-              }
-              return 'vendor';
-            }
-          },
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: (assetInfo) => {
-            const info = assetInfo.name.split('.');
-            const ext = info[info.length - 1];
-            if (ext === 'css') {
-              return `assets/[name]-[hash].${ext}`;
-            }
-            return 'assets/[name]-[hash][extname]';
-          },
-        },
-      },
-      sourcemap: !isProduction,
-      chunkSizeWarningLimit: 1000,
-      commonjsOptions: {
-        include: [/node_modules/],
-        transformMixedEsModules: true,
-        esmExternals: true,
-        requireReturnsDefault: 'auto'
-      },
-      rollupOptions: {
-        output: {
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('@radix-ui')) {
-                const pkg = id.split('node_modules/')[1].split('/').slice(0, 2).join('/');
-                return pkg;
-              }
-              if (id.includes('framer-motion')) return 'framer';
-              return 'vendor';
-            }
-          },
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: 'assets/[name]-[hash][extname]',
-          // Ensure proper module resolution
-          format: 'esm',
-        },
-      },
-      minify: isProduction ? 'terser' : false,
-      terserOptions: isProduction ? {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
-        },
-        format: {
-          comments: false,
-        },
-      } : undefined,
-      modulePreload: false,
-      dynamicImportVarsOptions: {
-        exclude: []
-      },
-      // Disable brotli compression in Vite when building for Vercel
-      brotliSize: !process.env.VERCEL,
-    },
-    optimizeDeps: {
-      include: [
-        ...radixUIComponents,
-        'react',
-        'react-dom',
-        'react-router-dom',
-        '@emotion/react',
-        '@emotion/styled'
-      ],
-      esbuildOptions: {
-        target: 'es2020',
-      },
-    },
-  };
+      }
+    }
+  },
+  define: {
+    'process.env': {},
+    'process.browser': true,
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    'process.env.NODE_DEBUG': 'false',
+    global: 'globalThis',
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || 'http://localhost:5001/')
+  },
+  server: {
+    port: 3000,
+    strictPort: true
+  },
+  preview: {
+    port: 4173,
+    strictPort: true
+  }
 });

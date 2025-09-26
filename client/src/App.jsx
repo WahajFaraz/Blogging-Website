@@ -1,6 +1,6 @@
 import "./global.css";
 
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner } from "./components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -20,6 +20,7 @@ import EditPost from "./pages/EditPost";
 import NotFound from "./pages/NotFound";
 import AuthorProfile from "./pages/AuthorProfile";
 import FollowList from "./pages/FollowList";
+import Explore from "./pages/Explore";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const App = () => (
               <main>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/explore" element={<Explore />} />
                   <Route path="/blog/:id" element={<BlogDetail />} />
                   <Route path="/author/:authorId" element={<AuthorProfile />} />
                   <Route path="/author/:userId/followers" element={<FollowList />} />

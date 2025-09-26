@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { config } from "../lib/config";
+import { createApiUrl } from "../lib/urlUtils";
+const { api } = config;
 
 const AuthContext = createContext(undefined);
 
@@ -40,11 +43,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('Fetching user profile with token:', token.substring(0, 10) + '...');
       
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-        
-      const response = await fetch(`${baseUrl}/api/v1/users/me`, {
+      const response = await fetch(`${api.baseUrl}/api/${api.version}/users/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -97,18 +96,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-        
-      const response = await fetch(`${baseUrl}/api/v1/users/login`, {
+      const response = await fetch(`${api.baseUrl}/api/${api.version}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
+        mode: 'cors'
       });
 
       if (!response.ok) {
@@ -141,13 +138,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/'
-        : '';
-      
       const isFormData = userData instanceof FormData;
       
-      const response = await fetch(`${baseUrl}/api/v1/users/signup`, {
+      const response = await fetch(`${api.baseUrl}/api/${api.version}/users/signup`, {
         method: 'POST',
         headers: isFormData ? {} : {
           'Content-Type': 'application/json',
@@ -191,30 +184,40 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
+      const currentToken = token || localStorage.getItem('token');
       
-      // Clear local state first
+      try {
+        // Call server-side logout with the full path
+        const response = await fetch(`${api.baseUrl}/api/${api.version}/auth/logout`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Authorization': currentToken ? `Bearer ${currentToken}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.error('Logout failed:', errorText);
+        }
+      } catch (error) {
+        console.error('Error during logout request:', error);
+        // Continue with local logout even if server logout fails
+      } finally {
+        // Clear local state
+        setUser(null);
+        setToken(null);
+        setError(null);
+        localStorage.removeItem('token');
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Unexpected error during logout:', error);
+      // Ensure we still clear local state and navigate
       setUser(null);
       setToken(null);
-      setError(null);
       localStorage.removeItem('token');
-      
-      // Call server-side logout if needed (optional)
-      await fetch(`${baseUrl}/api/v1/users/logout`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }).catch(console.error); // Don't fail if logout endpoint fails
-      
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Still navigate to home even if logout fails
       navigate('/');
     }
   };
@@ -224,13 +227,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/'
-        : '';
-
       const isFormData = updates instanceof FormData;
       
-      const response = await fetch(`${baseUrl}/api/v1/users/profile`, {
+      const response = await fetch(createApiUrl('users/profile'), {
         method: 'PUT',
         headers: isFormData ? {
           'Authorization': `Bearer ${token}`,

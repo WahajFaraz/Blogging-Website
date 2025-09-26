@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,7 +29,26 @@ async function main() {
   
   // Install production dependencies only
   log('📦 Installing dependencies...');
-  if (!runCommand('npm ci --prefer-offline --no-audit', 'Error installing dependencies')) {
+  if (!runCommand('npm ci --prefer-offline --no-audit --legacy-peer-deps', 'Error installing dependencies')) {
+    process.exit(1);
+  }
+
+  // Install required polyfills
+  log('📦 Installing polyfills...');
+  const polyfills = [
+    'buffer',
+    'process',
+    'stream-browserify',
+    'path-browserify',
+    'util',
+    'crypto-browserify',
+    'stream-http',
+    'https-browserify',
+    'os-browserify',
+    'assert'
+  ];
+  
+  if (!runCommand(`npm install --no-save ${polyfills.join(' ')}`, 'Error installing polyfills')) {
     process.exit(1);
   }
 

@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import Avatar from "./Avatar";
 import { Heart, MessageCircle, Eye, Clock, Calendar } from "lucide-react";
 import { useState } from "react";
+import { config } from "../lib/config";
+const { api } = config;
 
 const BlogCard = ({ blog, index }) => {
   const { user, token, isAuthenticated } = useAuth();
@@ -31,28 +33,29 @@ const BlogCard = ({ blog, index }) => {
       return;
     }
 
-    const baseUrl = import.meta.env.DEV ? "https://blogs-backend-ebon.vercel.app/" : "https://blogs-backend-ebon.vercel.app/";
+    const newLikedState = !likedState.isLiked;
+    const newLikesCount = newLikedState 
+      ? likedState.likesCount + 1 
+      : Math.max(0, likedState.likesCount - 1);
+
+    setLikedState({
+      isLiked: newLikedState,
+      likesCount: newLikesCount,
+    });
 
     const originalState = { ...likedState };
-    setLikedState((prev) => ({
-      isLiked: !prev.isLiked,
-      likesCount: prev.isLiked ? prev.likesCount - 1 : prev.likesCount + 1,
-    }));
-
+    
     try {
-      const response = await fetch(
-        `${baseUrl}/api/v1/blogs/${blog._id}/like`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${api.baseUrl}/api/${api.version}/blogs/${blog._id}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        setLikedState(originalState);
+        throw new Error('Failed to update like status');
       }
     } catch (error) {
       console.error("Error toggling like:", error);
@@ -141,28 +144,18 @@ const BlogCard = ({ blog, index }) => {
               to={`/author/${blog.author._id}`}
               className="flex items-center gap-3 z-10 relative"
             >
-              <Avatar className="h-8 w-8 rounded-full ring-2 ring-blog-primary/20 shadow-sm">
-                <AvatarImage
-                  src={blog.author?.avatar?.url || ""}
-                  alt={
-                    blog.author?.fullName ||
-                    blog.author?.username ||
-                    "Author"
-                  }
-                  className="object-cover"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
+              <div className="flex items-center gap-2">
+                <Avatar 
+                  src={blog.author?.avatar?.url} 
+                  alt={blog.author?.username || 'User'}
+                  size={32}
+                  fallbackText={blog.author?.username || blog.author?.fullName}
+                  className="border border-gray-200"
                 />
-                <AvatarFallback className="text-xs bg-gradient-to-br from-blog-primary to-blog-secondary text-white font-bold">
-                  {blog.author?.fullName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase() ||
-                    blog.author?.username?.[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+                <span className="text-sm font-medium">
+                  {blog.author?.username || 'Unknown Author'}
+                </span>
+              </div>
               <div>
                 <p className="text-sm font-medium text-foreground hover:text-blog-primary transition-colors">
                   {blog.author.fullName}

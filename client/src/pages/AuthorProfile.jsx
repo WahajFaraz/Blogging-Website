@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { createApiUrl } from "../lib/urlUtils";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -26,7 +27,7 @@ const AuthorProfile = () => {
       try {
         setLoading(true);
         
-        const authorRes = await fetch(`/api/users/id/${authorId}`);
+        const authorRes = await fetch(createApiUrl(`users/id/${authorId}`));
         if (!authorRes.ok) throw new Error('Author not found');
         const authorData = await authorRes.json();
         setAuthor(authorData);
@@ -35,7 +36,7 @@ const AuthorProfile = () => {
           setIsFollowing(authorData.followers.some(f => f._id === currentUser._id));
         }
         
-        const blogsRes = await fetch(`/api/blogs/user/${authorId}`);
+        const blogsRes = await fetch(createApiUrl(`blogs/user/${authorId}`));
         if (!blogsRes.ok) throw new Error('Could not fetch blogs');
         const blogsData = await blogsRes.json();
         setBlogs(blogsData.blogs || []);
@@ -60,7 +61,7 @@ const AuthorProfile = () => {
     const endpoint = isFollowing ? 'unfollow' : 'follow';
 
     try {
-            const response = await fetch(`/api/users/${endpoint}/${authorId}`, {
+            const response = await fetch(createApiUrl(`users/${endpoint}/${authorId}`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -37,7 +37,24 @@ root.render(
   </React.StrictMode>
 );
 
-// Handle runtime errors
+// Global error handler
 window.addEventListener('error', (event) => {
-  console.error('Runtime error:', event.error);
+  const error = event.error || event;
+  console.error('Unhandled error:', {
+    message: error.message,
+    stack: error.stack,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno
+  });
+  
+  // Prevent the default error handler
+  event.preventDefault();
+  return true;
+});
+
+// Unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  event.preventDefault();
 });

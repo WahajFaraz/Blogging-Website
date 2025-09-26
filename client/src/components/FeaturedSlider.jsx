@@ -1,23 +1,40 @@
 import React, { useEffect, useState } from "react";
 import BlogCard from "./BlogCard";
 import { motion } from "framer-motion";
+import { createApiUrl } from "../lib/urlUtils";
 
 export const FeaturedSlider = () => {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/blogs/featured')
-      .then((res) => res.json())
-      .then((data) => {
-        setBlogs(data || []);
+    const fetchFeaturedBlogs = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(createApiUrl('blogs/featured'), {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Featured blogs response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch featured blogs');
+        }
+
+        const data = await response.json();
+        setBlogs(data.blogs || []);
+      } catch (err) {
+        console.error('Error fetching featured blogs:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
+      }
+    };
+
+    fetchFeaturedBlogs();
   }, []);
 
   const featuredBlogs = Array.isArray(blogs) ? blogs.slice(0, 3) : [];

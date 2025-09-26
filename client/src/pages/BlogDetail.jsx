@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { createApiUrl } from "../lib/urlUtils";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -49,10 +50,7 @@ const BlogDetail = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}`, {
+      const response = await fetch(createApiUrl(`blogs/${id}`), {
         headers
       });
 
@@ -78,10 +76,7 @@ const BlogDetail = () => {
 
     try {
       setLiking(true);
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}/like`, {
+      const response = await fetch(createApiUrl(`blogs/${id}/like`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -118,10 +113,7 @@ const BlogDetail = () => {
 
     try {
       setSubmittingComment(true);
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}/comments`, {
+      const response = await fetch(createApiUrl(`blogs/${id}/comments`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -150,10 +142,7 @@ const BlogDetail = () => {
 
     try {
       setDeleting(true);
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : '';
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}`, {
+      const response = await fetch(createApiUrl(`blogs/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

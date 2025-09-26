@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 import { MediaUpload } from "../components/MediaUpload";
+import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -35,7 +37,6 @@ const CreatePost = () => {
   });
 
   const [tagInput, setTagInput] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
 
   const categories = [
     "Technology", "Design", "Development", "Business", 
@@ -222,31 +223,34 @@ const CreatePost = () => {
     setError(null);
 
     try {
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/'
-        : '';
-      const response = await fetch(`${baseUrl}/api/v1/blogs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      // Prepare the blog data according to server expectations
+      const blogData = {
+        title: formData.title,
+        content: formData.content,
+        excerpt: formData.excerpt || formData.content.substring(0, 200) + '...',
+        category: formData.category,
+        tags: formData.tags || [],
+        status: formData.status || 'draft',
+        media: formData.media || {
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=600&h=400&fit=crop'
         },
-        body: JSON.stringify(formData)
-      });
+        mediaGallery: formData.mediaGallery || []
+      };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
-      } else {
-        setError(data.error || 'Failed to create blog post');
-      }
+      const response = await api.createBlog(blogData, token);
+      
+      // If we get here, the blog was created successfully
+      setSuccess(true);
+      // Show success message
+      toast.success('Blog created successfully!');
+      // Redirect to the home page after a short delay
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
     } catch (error) {
       console.error('Create post error:', error);
-      setError('Network error. Please try again.');
+      setError(error.message || 'Failed to create blog post. Please check your input and try again.');
     } finally {
       setLoading(false);
     }
@@ -407,7 +411,6 @@ const CreatePost = () => {
                   onMediaSelect={handleMediaSelect}
                   mediaType="both"
                   maxSize={20}
-                  showPreview={true}
                 />
                 {formData.mediaGallery.length > 0 && (
                   <div className="mt-4 space-y-3">
@@ -461,18 +464,6 @@ const CreatePost = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPreview(!showPreview)}
-                      className="flex items-center gap-2"
-                    >
-                      {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      {showPreview ? 'Hide Preview' : 'Show Preview'}
-                    </Button>
-                  </div>
                   <div className="text-sm text-muted-foreground">
                     {wordCount} words • ~{calculateReadTime()} min read
                   </div>
@@ -660,22 +651,6 @@ const CreatePost = () => {
                       data-placeholder="Start writing your content here..."
                     />
                   </div>
-
-                  {showPreview && (
-                    <div className="mt-6">
-                      <Label>Preview</Label>
-                      <div className="border rounded-md p-4 h-[500px] overflow-y-auto bg-muted/50">
-                        <div className="prose prose-sm max-w-none">
-                          <h1 className="text-2xl font-bold mb-4">{formData.title || 'Untitled'}</h1>
-                          <p className="text-muted-foreground mb-4">{formData.excerpt || 'No excerpt'}</p>
-                          <div 
-                            className="prose prose-sm max-w-none prose-foreground"
-                            dangerouslySetInnerHTML={{ __html: formData.content || 'Start writing your content...' }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>

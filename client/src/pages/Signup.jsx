@@ -288,6 +288,7 @@ const Signup = () => {
                       placeholder="Choose a unique username"
                       className={`pl-10 ${getFieldError('username') ? 'border-red-500' : ''} ${isFieldValid('username') ? 'border-green-500' : ''}`}
                       disabled={loading}
+                      autoComplete="username"
                     />
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     {isFieldValid('username') && (
@@ -337,6 +338,7 @@ const Signup = () => {
                       placeholder="Create a strong password"
                       className={`pl-10 pr-10 ${getFieldError('password') ? 'border-red-500' : ''} ${isFieldValid('password') ? 'border-green-500' : ''}`}
                       disabled={loading}
+                      autoComplete="new-password"
                     />
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <button
@@ -371,6 +373,7 @@ const Signup = () => {
                       placeholder="Confirm your password"
                       className={`pl-10 pr-10 ${getFieldError('confirmPassword') ? 'border-red-500' : ''} ${isFieldValid('confirmPassword') ? 'border-green-500' : ''}`}
                       disabled={loading}
+                      autoComplete="new-password"
                     />
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <button

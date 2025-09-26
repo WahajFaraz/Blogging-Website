@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { createApiUrl } from '../lib/urlUtils';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import Avatar from '../components/Avatar';
 import { UserPlus, UserCheck, ArrowLeft } from 'lucide-react';
 
 const FollowList = () => {
@@ -26,7 +27,7 @@ const FollowList = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/users/id/${userId}`);
+        const res = await fetch(createApiUrl(`users/id/${userId}`));
         if (!res.ok) throw new Error('User not found');
         const data = await res.json();
         setUser(data);
@@ -62,7 +63,7 @@ const FollowList = () => {
     setFollowingStatus(prev => ({ ...prev, [targetUserId]: !isFollowing })); // Optimistic update
 
     try {
-        const response = await fetch(`/api/users/${endpoint}/${targetUserId}`, {
+        const response = await fetch(createApiUrl(`users/${endpoint}/${targetUserId}`), {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -103,10 +104,13 @@ const FollowList = () => {
               {list.map(person => (
                 <li key={person._id} className="p-4 flex items-center justify-between hover:bg-muted/50">
                   <Link to={`/author/${person._id}`} className="flex items-center gap-4">
-                    <Avatar>
-                      <AvatarImage src={person.avatar?.url} />
-                      <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
-                    </Avatar>
+                    <Avatar 
+                      src={person.avatar?.url}
+                      alt={person.fullName || 'User'}
+                      size={40}
+                      fallbackText={person.fullName || person.username}
+                      className="border border-gray-200"
+                    />
                     <div>
                       <p className="font-semibold hover:underline">{person.fullName}</p>
                       <p className="text-sm text-muted-foreground">@{person.username}</p>

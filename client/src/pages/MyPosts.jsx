@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { createApiUrl } from "../lib/urlUtils";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -35,7 +36,7 @@ const MyPosts = () => {
   const fetchMyPosts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/v1/blogs/my-posts`, {
+      const response = await fetch(createApiUrl('blogs/my-posts'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -60,7 +61,7 @@ const MyPosts = () => {
 
     try {
       setDeleting(postId);
-      const response = await fetch(`/api/v1/blogs/${postId}`, {
+      const response = await fetch(createApiUrl(`blogs/${postId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

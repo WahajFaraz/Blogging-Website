@@ -2,6 +2,9 @@ import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Image, Video, File, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { config } from "../lib/config";
+import { createApiUrl } from "../lib/urlUtils";
+const { api } = config;
 
 export const MediaUpload = ({ 
   onMediaSelect, 
@@ -10,7 +13,6 @@ export const MediaUpload = ({
   className = "",
   accept = "image/*,video/*",
   multiple = true,
-  showPreview = true,
   folder = 'blogss',
   placement = 'header'
 }) => {
@@ -93,15 +95,11 @@ export const MediaUpload = ({
       const formData = new FormData();
       formData.append('file', file);
 
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : 'https://blogs-backend-ebon.vercel.app/';
-        
-      let endpoint = `${baseUrl}/api/v1/media/upload-blog-media`;
+      let endpoint = createApiUrl('media/upload-blog-media');
       if (file.type.startsWith('image/')) {
-        endpoint = `${baseUrl}/api/v1/media/upload-image`;
+        endpoint = `${api.baseUrl}/api/${api.version}/media/upload-image`;
       } else if (file.type.startsWith('video/')) {
-        endpoint = `${baseUrl}/api/v1/media/upload-video`;
+        endpoint = `${api.baseUrl}/api/${api.version}/media/upload-video`;
       }
 
       const response = await fetch(endpoint, {
@@ -241,7 +239,7 @@ export const MediaUpload = ({
 
       </div>
 
-      {showPreview && uploadedMedia.length > 0 && (
+      {uploadedMedia.length > 0 && (
         <div className="mt-6">
           <h4 className="text-sm font-medium text-foreground mb-3">Uploaded Media</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

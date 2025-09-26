@@ -209,6 +209,7 @@ export default function Login() {
                   className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-blog-primary focus:border-transparent transition-all duration-300"
                   placeholder="Enter your email"
                   disabled={loading}
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -232,6 +233,7 @@ export default function Login() {
                   className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-blog-primary focus:border-transparent transition-all duration-300"
                   placeholder="Enter your password"
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

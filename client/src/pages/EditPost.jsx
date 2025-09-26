@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { MediaUpload } from "../components/MediaUpload";
+import { createApiUrl } from "../lib/urlUtils";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -36,7 +37,6 @@ const EditPost = () => {
   });
 
   const [tagInput, setTagInput] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
   const contentRef = useRef(null);
 
   const categories = [
@@ -54,11 +54,7 @@ const EditPost = () => {
       setLoading(true);
       setError(null);
       
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : 'https://blogs-backend-ebon.vercel.app/';
-      
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}`, {
+      const response = await fetch(createApiUrl(`blogs/${id}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -211,11 +207,7 @@ const EditPost = () => {
     setError(null);
 
     try {
-      const baseUrl = import.meta.env.DEV 
-        ? 'https://blogs-backend-ebon.vercel.app/' 
-        : 'https://blogs-backend-ebon.vercel.app/';
-      
-      const response = await fetch(`${baseUrl}/api/v1/blogs/${id}`, {
+      const response = await fetch(createApiUrl(`blogs/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -521,7 +513,6 @@ const EditPost = () => {
                   onMediaSelect={handleMediaSelect}
                   mediaType="both"
                   maxSize={20}
-                  showPreview={true}
                 />
                 {formData.mediaGallery.length > 0 && (
                   <div className="mt-4 space-y-3">
@@ -584,18 +575,6 @@ const EditPost = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPreview(!showPreview)}
-                      className="flex items-center gap-2"
-                    >
-                      {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      {showPreview ? 'Hide Preview' : 'Show Preview'}
-                    </Button>
-                  </div>
                   <div className="text-sm text-muted-foreground">
                     {wordCount} words • ~{calculateReadTime()} min read
                   </div>
@@ -756,22 +735,6 @@ const EditPost = () => {
                       data-placeholder="Start writing your content here..."
                     />
                   </div>
-
-                  {showPreview && (
-                    <div className="mt-6">
-                      <Label>Preview</Label>
-                      <div className="border rounded-md p-4 h-[500px] overflow-y-auto bg-muted/50">
-                        <div className="prose prose-sm max-w-none">
-                          <h1 className="text-2xl font-bold mb-4">{formData.title || 'Untitled'}</h1>
-                          <p className="text-muted-foreground mb-4">{formData.excerpt || 'No excerpt'}</p>
-                          <div 
-                            className="prose prose-sm max-w-none prose-foreground"
-                            dangerouslySetInnerHTML={{ __html: formData.content || 'Start writing your content...' }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
