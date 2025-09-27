@@ -164,7 +164,7 @@ const api = {
   },
 
   // Blog endpoints
-  getBlogs: async (params = {}) => {
+  getBlogs: async (params = {}, token = null) => {
     // If params is a string (legacy support), convert it to an object
     if (typeof params === 'string') {
       const searchParams = new URLSearchParams(
@@ -179,13 +179,16 @@ const api = {
     // Ensure we always have valid pagination
     const finalParams = {
       page: 1,
-      limit: 10,
+      limit: 100, // Increase limit to fetch all posts
       ...params
     };
 
     const url = getBlogsUrl(finalParams);
     console.log('Fetching blogs from URL:', url);
-    const response = await fetch(url, createOptions('GET'));
+    
+    // Create options with token if provided
+    const options = createOptions('GET', null, token);
+    const response = await fetch(url, options);
     return await handleResponse(response);
   },
 

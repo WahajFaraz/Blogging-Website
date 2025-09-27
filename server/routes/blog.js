@@ -18,8 +18,13 @@ router.get('/', optionalAuth, async (req, res) => {
     let query = {};
     
     // If myPosts is true and user is authenticated, get only their posts
-    if (myPosts === 'true' && req.user) {
+    if (myPosts === 'true') {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       query.author = req.user._id;
+      // When viewing myPosts, include both published and draft posts
+      query.status = { $in: ['published', 'draft'] };
     } else {
       // Otherwise, only get published posts
       query.status = 'published';

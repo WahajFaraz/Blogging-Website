@@ -36,12 +36,16 @@ const MyPosts = () => {
   const fetchMyPosts = async () => {
     try {
       setLoading(true);
-      const data = await api.getBlogs({ myPosts: true }, token);
-      setPosts(data.blogs || []);
+      // Pass myPosts as a string 'true' and include the token in the options
+      const data = await api.getBlogs({ myPosts: 'true' }, token);
+      console.log('Fetched posts:', data);
+      // The response is an array of posts, not an object with a blogs property
+      setPosts(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError(error.message || 'Failed to fetch posts');
+      setPosts([]);
     } finally {
       setLoading(false);
     }
