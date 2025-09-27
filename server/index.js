@@ -1,292 +1,120 @@
-import 'express-async-errors';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
-import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
-import { xss } from 'express-xss-sanitizer';
-import hpp from 'hpp';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import userRoutes from './routes/user.js';
 import blogRoutes from './routes/blog.js';
 import mediaRoutes from './routes/media.js';
 
-let cachedDb = null;
+// Initialize Express app
+const app = express();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Basic security headers
+app.use(helmet());
 
-const createApp = () => {
-  const app = express();
+// Request logging
+app.use(morgan('dev'));
 
-  app.use(
-    helmet({
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
-      crossOriginEmbedderPolicy: false,
-    })
-  );
+// CORS Configuration
+const allowedOrigins = [
+  'https://blogspace-gamma.vercel.app',
+  'https://blogging-website-lyart.vercel.app',
+];
 
-  // Logging
-  app.use(morgan(config.server.nodeEnv === 'production' ? 'combined' : 'dev'));
-
-  /** ---------------------- CORS FIX ------------------------- */
-  const allowedOrigins = [
-    'https://blogspace-gamma.vercel.app',
-    'https://blogging-website-lyart.vercel.app',
-  ];
-
-  // Log all requests
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    console.log('Origin:', req.headers.origin);
-    console.log('Headers:', req.headers);
-    next();
-  });
-
-  // CORS configuration
-  const corsOptions = {
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Check if the origin is in the allowed list or is a vercel.app subdomain
-      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        return callback(null, origin);
-      }
-      
-      const msg = `The CORS policy for this site does not allow access from ${origin}`;
-      console.error('CORS Error:', msg);
-      return callback(new Error(msg), false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Origin',
-      'X-CSRF-Token'
-    ],
-    exposedHeaders: [
-      'Content-Length',
-      'Authorization',
-      'Set-Cookie',
-      'X-CSRF-Token'
-    ],
-    maxAge: 86400, // 24 hours
-    optionsSuccessStatus: 200,
-    preflightContinue: false
-  };
-
-  // Apply CORS middleware
-  app.use(cors(corsOptions));
-  
-  // Handle preflight requests
-  app.options('*', cors(corsOptions));
-  
-  // Add CORS headers to all responses
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Credentials', 'true');
-    }
-    next();
-  });
-
-  // Test endpoint
-  app.get('/api/test-cors', (req, res) => {
-    res.json({ 
-      status: 'success',
-      message: 'CORS is working!',
-      timestamp: new Date().toISOString()
-    });
-  });
-
-
-  /** --------------------------------------------------------- */
-
-  // Root endpoint
-  app.get('/', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.status(200).json({
-      status: 'ok',
-      message: 'BlogSpace API is running',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      documentation: 'https://github.com/yourusername/your-repo#readme',
-      endpoints: {
-        blogs: '/api/v1/blogs',
-        users: '/api/v1/users',
-        media: '/api/v1/media',
-        health: '/api/health'
-      }
-    });
-  });
-
-  // Health check
-  app.get('/api/health', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.status(200).json({ 
-      status: 'ok', 
-      time: new Date().toISOString(),
-      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-    });
-  });
-
-  // Rate limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-  app.use('/api', limiter);
-  app.use('/api/v1', limiter);
-
-  // Parsers & Security
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(mongoSanitize());
-  app.use(xss());
-  app.use(hpp());
-  app.use(compression());
-
-  // Database connection middleware
-  const ensureDbConnection = async (req, res, next) => {
-    try {
-      if (mongoose.connection.readyState !== 1) {
-        await connectToMongoDB();
-      }
-      next();
-    } catch (error) {
-      console.error('Database connection error:', error);
-      res.status(503).json({
-        status: 'error',
-        message: 'Database connection error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  };
-  app.use('/api', ensureDbConnection);
-
-  // Routes
-  app.use('/api/v1/blogs', blogRoutes);
-  app.use('/api/v1/users', userRoutes);
-  app.use('/api/v1/media', mediaRoutes);
-
-  // 404
-  app.use('/api/v1/*', (req, res) =>
-    res.status(404).json({ message: 'API endpoint not found' })
-  );
-
-  // Error handler
-  app.use((err, req, res, next) => {
-    console.error('Error:', {
-      message: err.message,
-      status: err.status || 500,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-      name: err.name,
-      code: err.code
-    });
-
-    // Handle CORS errors
-    if (err.name === 'CorsError') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Not allowed by CORS',
-        details: err.message
-      });
-    }
-
-    // Handle other errors
-    res.status(err.status || 500).json({
-      status: 'error',
-      message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-  });
-
-  return app;
-};
-
-const app = createApp();
-
-/* ---------- MongoDB connection ---------- */
-const connectToMongoDB = async () => {
-  try {
-    if (cachedDb && mongoose.connection.readyState === 1) {
-      console.log('Using existing database connection');
-      return;
-    }
-
-    console.log('Connecting to MongoDB...');
-    
-    // Close any existing connections first
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-
-    // Connect with retry logic
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (attempts < maxAttempts) {
-      try {
-        await mongoose.connect(config.db.uri, {
-          ...config.db.options,
-          serverSelectionTimeoutMS: 5000,
-          socketTimeoutMS: 45000,
-        });
-        
-        cachedDb = mongoose.connection;
-        console.log('MongoDB connected successfully');
-        return;
-      } catch (error) {
-        attempts++;
-        console.error(`MongoDB connection attempt ${attempts} failed:`, error.message);
-        
-        if (attempts === maxAttempts) {
-          console.error('Max connection attempts reached. Could not connect to MongoDB.');
-          throw error;
-        }
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
   }
-};
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
 
-// Handle connection events
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err);});
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'BlogSpace API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
 
-/* ---------- Server ---------- */
-const startServer = async () => {
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    time: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Body parsers
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// API Routes
+app.use('/api/v1/blogs', blogRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/media', mediaRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    status: 'error',
+    message: 'Endpoint not found'
+  });
+});
+
+// Error Handler
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err);
+  
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Something went wrong' 
+      : err.message
+  });
+});
+
+// MongoDB Connection
+const connectDB = async () => {
   try {
-    await connectToMongoDB();
-    const port = config.server.port;
-    app.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-    });
-  } catch (err) {
-    console.error('Server start error:', err);
+    await mongoose.connect(config.db.uri, config.db.options);
+    console.log('MongoDB Connected');
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error.message);
     process.exit(1);
   }
 };
 
-if (process.env.NODE_ENV !== 'test') startServer();
+// Start Server
+const PORT = process.env.PORT || 5000;
+
+const start = async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+// Start the server if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  start();
+}
 
 export default app;
