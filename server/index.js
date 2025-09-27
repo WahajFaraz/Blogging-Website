@@ -150,7 +150,15 @@ const createApp = () => {
 
   // Health check endpoint with database connection check
   app.get('/', async (req, res) => {
-    let dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+    // Safely get connection state
+    let dbState = 'unknown';
+    try {
+      dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+    } catch (e) {
+      console.warn('Could not determine MongoDB connection state:', e.message);
+      dbState = 'connection error';
+    }
+    
     let pingResult = 'not attempted';
     let pingError = null;
     let connectionError = null;
@@ -166,23 +174,31 @@ const createApp = () => {
     console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
 
     // Try to connect to database if not connected
-    if (mongoose.connection.readyState !== 1) {
-      try {
-        console.log('Attempting to establish database connection...');
+    try {
+      // Check if we have a valid connection state
+      if (mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
+        if (mongoose.connection.readyState !== 1) {
+          console.log('Attempting to establish database connection...');
+          await connectToMongoDB();
+          dbState = 'connected';
+          console.log('Database connection established successfully');
+        }
+      } else {
+        console.log('Mongoose connection not properly initialized, attempting to connect...');
         await connectToMongoDB();
         dbState = 'connected';
         console.log('Database connection established successfully');
-      } catch (err) {
-        connectionError = {
-          name: err.name,
-          message: err.message,
-          code: err.code,
-          codeName: err.codeName,
-          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        };
-        console.error('Failed to connect to database in health check:', connectionError);
-        dbState = 'connection failed';
       }
+    } catch (err) {
+      connectionError = {
+        name: err.name,
+        message: err.message,
+        code: err.code,
+        codeName: err.codeName,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      };
+      console.error('Failed to connect to database in health check:', connectionError);
+      dbState = 'connection failed';
     }
 
     // Try to ping the database if we think we're connected
@@ -388,12 +404,14 @@ const connectToMongoDB = async (options = {}) => {
   const attemptConnection = async () => {
     try {
       // Return cached connection if available and connected
-      if (cachedDb && mongoose.connection.readyState === 1) {
+      if (cachedDb && mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
         try {
           // Verify the connection is still alive
-          await mongoose.connection.db.admin().ping();
-          console.log('Using existing database connection');
-          return mongoose.connection;
+          if (mongoose.connection.db) {
+            await mongoose.connection.db.admin().ping();
+            console.log('Using existing database connection');
+            return mongoose.connection;
+          }
         } catch (pingError) {
           console.log('Cached connection is dead, creating a new one');
           cachedDb = null;
@@ -467,7 +485,7 @@ const connectToMongoDB = async (options = {}) => {
   };
 
   // Set up event listeners (only once)
-  if (!mongoose.connection._events.connected) {
+  if (!mongoose.connection._events || !mongoose.connection._events.connected) {
     mongoose.connection.on('connected', () => {
       console.log('MongoDB connected event');
     });
@@ -497,7 +515,21 @@ const connectToMongoDB = async (options = {}) => {
 
 // Function to start the server
 const startServer = async () => {
-  // Try to connect to MongoDB
+    // Initialize MongoDB connection with retry logic
+  let dbConnection;
+  try {
+    dbConnection = await connectToMongoDB({
+      retry: true,
+      maxRetries: 5,
+      retryDelay: 3000
+    });
+  } catch (error) {
+    console.error('Failed to connect to MongoDB after multiple retries:', error);
+    // Don't exit in production, let the health check handle it
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
+  }
   try {
     console.log('Starting server...');
     
