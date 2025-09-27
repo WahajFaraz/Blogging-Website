@@ -281,27 +281,59 @@ const MyPosts = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {posts.map((post, index) => (
                     <motion.div
                       key={post._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className="group relative flex flex-col rounded-xl overflow-hidden bg-card border shadow-sm hover:shadow-md transition-all duration-300 h-full"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-foreground">
-                              <Link 
-                                to={`/blog/${post._id}`} 
-                                className="hover:text-blog-primary transition-colors"
-                              >
-                                {post.title}
-                              </Link>
-                            </h3>
-                            <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
+                      {/* Post Image */}
+                      <div className="relative h-48 overflow-hidden">
+                        <img
+                          src={post.coverImage?.url || 'https://images.unsplash.com/photo-1542435503-956c469947f6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80'}
+                          alt={post.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                          <div className="flex space-x-2">
+                            <Badge variant="secondary" className="bg-white/10 backdrop-blur-sm text-white border-0">
+                              {post.category || 'Uncategorized'}
+                            </Badge>
+                            {post.status === 'draft' && (
+                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                                Draft
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Post Content */}
+                      <div className="p-5 flex-1 flex flex-col">
+                        <div className="flex items-center text-sm text-muted-foreground mb-2">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          {new Date(post.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                          <span className="mx-2">•</span>
+                          <Clock className="h-4 w-4 mr-1" />
+                          {Math.ceil((post.content?.length || 0) / 1000 * 2)} min read
+                        </div>
+                        
+                        <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2">
+                          <Link 
+                            to={`/blog/${post._id}`} 
+                            className="hover:text-blog-primary transition-colors after:absolute after:inset-0"
+                          >
+                            {post.title}
+                          </Link>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant={post.status === 'published' ? 'default' : 'secondary'} className="capitalize">
                               {post.status}
                             </Badge>
                             {post.featured && (
@@ -310,68 +342,62 @@ const MyPosts = () => {
                               </Badge>
                             )}
                           </div>
+                        </h3>
+                        
+                        <p className="text-muted-foreground line-clamp-3 my-4 flex-1">
+                          {post.excerpt || (post.content ? post.content.substring(0, 150) + '...' : '')}
+                        </p>
+                        
+                        {/* Post Stats */}
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
+                          <div className="flex items-center space-x-4 text-sm">
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
+                              <Heart className="h-4 w-4 mr-1" />
+                              <span>{post.likes?.length || 0}</span>
+                            </div>
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
+                              <MessageCircle className="h-4 w-4 mr-1" />
+                              <span>{post.comments?.length || 0}</span>
+                            </div>
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
+                              <Eye className="h-4 w-4 mr-1" />
+                              <span>{post.views || 0}</span>
+                            </div>
+                          </div>
                           
-                          <p className="text-muted-foreground mb-3 line-clamp-2">
-                            {post.excerpt}
-                          </p>
-
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(post.publishedAt || post.createdAt)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {post.readTime} min read
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              {post.views || 0} views
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {post.likes?.length || 0} likes
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="h-3 w-3" />
-                              {post.comments?.length || 0} comments
-                            </span>
+                          <div className="flex space-x-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(`/edit/${post._id}`);
+                              }}
+                              title="Edit post"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDelete(post._id);
+                              }}
+                              disabled={deleting === post._id}
+                              title="Delete post"
+                            >
+                              {deleting === post._id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            {post.tags?.slice(0, 3).map((tag, tagIndex) => (
-                              <Badge key={tagIndex} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {post.tags?.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{post.tags.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 ml-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/edit/${post._id}`)}
-                            className="flex items-center gap-1"
-                          >
-                            <Edit className="h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(post._id)}
-                            disabled={deleting === post._id}
-                            className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:border-red-600"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            {deleting === post._id ? 'Deleting...' : 'Delete'}
-                          </Button>
                         </div>
                       </div>
                     </motion.div>
