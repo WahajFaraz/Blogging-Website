@@ -66,9 +66,17 @@ const createApp = () => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin'
+    ],
     exposedHeaders: ['Content-Length', 'Authorization'],
-    maxAge: 600 // 10 minutes
+    maxAge: 86400, // 24 hours
+    optionsSuccessStatus: 200,
+    preflightContinue: false
   };
 
   // Apply CORS to all routes
@@ -84,40 +92,6 @@ const createApp = () => {
     });
   });
 
-  // Function to handle CORS origin with credentials
-  const handleCorsOrigin = (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if the origin is allowed
-    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      // For credentialed requests, we need to return the exact origin, not true
-      return callback(null, origin);
-    }
-    
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
-  };
-
-  const corsOptions = {
-    origin: handleCorsOrigin,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Origin'
-    ],
-    exposedHeaders: ['Content-Length', 'Authorization'],
-    optionsSuccessStatus: 200,
-    maxAge: 86400, // 24 hours
-    preflightContinue: false
-  };
-
-  // handle OPTIONS first
-  app.options('*', cors(corsOptions));
-  app.use(cors(corsOptions));
 
   /** --------------------------------------------------------- */
 
@@ -172,10 +146,17 @@ const createApp = () => {
   // Database connection middleware
   const ensureDbConnection = async (req, res, next) => {
     try {
-      if (mongoose.connection.readyState !== 1) await connectToMongoDB();
+      if (mongoose.connection.readyState !== 1) {
+        await connectToMongoDB();
+      }
       next();
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      console.error('Database connection error:', error);
+      res.status(503).json({
+        status: 'error',
+        message: 'Database connection error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   };
   app.use('/api', ensureDbConnection);
