@@ -154,8 +154,18 @@ const createApp = () => {
     let dbState = 'unknown';
     let mongoState = 'unknown';
     let mongoConnection = null;
+    let connectionError = null;
     
     try {
+      // Log the MongoDB URI being used (without credentials)
+      const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
+      console.log('MongoDB Connection Attempt:', {
+        uriStartsWith: config.db.uri.startsWith('mongodb+srv://') ? 'mongodb+srv://' : 'mongodb://',
+        safeUri: safeUri,
+        hasCredentials: config.db.uri.includes('@'),
+        nodeEnv: process.env.NODE_ENV
+      });
+      
       // Get MongoDB connection state safely
       if (mongoose.connection) {
         mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
@@ -168,14 +178,26 @@ const createApp = () => {
         };
       }
       dbState = mongoState;
+      
+      // If not connected, try to connect
+      if (mongoose.connection.readyState !== 1) {
+        console.log('Attempting to establish database connection...');
+        await connectToMongoDB();
+        dbState = 'connected';
+        console.log('Database connection established successfully');
+      }
     } catch (e) {
-      console.warn('Could not determine MongoDB connection state:', e.message);
+      console.error('Error in health check:', e);
       dbState = 'connection error';
+      connectionError = {
+        name: e.name,
+        message: e.message,
+        stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
+      };
     }
     
     let pingResult = 'not attempted';
     let pingError = null;
-    let connectionError = null;
 
     // Log environment information
     const envInfo = {
@@ -454,26 +476,31 @@ const connectToMongoDB = async (options = {}) => {
       console.log('Connecting to MongoDB...');
       
       // Log connection attempt (without credentials)
-      const safeUri = config.db.uri ? 
-        config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@') : 
-        'No URI configured';
+      const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
       
-      console.log('Environment Variables:', {
-        NODE_ENV: process.env.NODE_ENV,
-        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
-        USING_CONFIG_URI: !!config.db.uri,
-        SAFE_URI: safeUri,
-        URI_STARTS_CORRECTLY: config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')
+      console.log('MongoDB Connection Info:', {
+        usingConfig: 'Hardcoded in config',
+        uriStartsWith: config.db.uri.startsWith('mongodb+srv://') ? 'mongodb+srv://' : 'mongodb://',
+        safeUri: safeUri,
+        hasCredentials: config.db.uri.includes('@')
       });
 
       try {
         // Create a new connection with the options from config
         console.log('Attempting to connect to MongoDB...');
-        await mongoose.connect(config.db.uri, {
+        console.log('Using connection string:', config.db.uri);
+        
+        const connectionOptions = {
           ...config.db.options,
           serverSelectionTimeoutMS: 10000, // 10 seconds timeout
           socketTimeoutMS: 45000, // 45 seconds socket timeout
-        });
+          useNewUrlParser: true,
+          useUnifiedTopology: true
+        };
+        
+        console.log('Connection options:', JSON.stringify(connectionOptions, null, 2));
+        
+        await mongoose.connect(config.db.uri, connectionOptions);
         
         console.log('MongoDB connected successfully');
         console.log('MongoDB Connection Details:', {
