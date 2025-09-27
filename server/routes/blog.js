@@ -8,14 +8,22 @@ const router = express.Router();
 // Get all published blogs with pagination and filtering
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, search, sort = 'newest' } = req.query;
+    const { page = 1, limit = 10, category, search, sort = 'newest', myPosts } = req.query;
     
     // Basic pagination
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
     
-    // Base query for published blogs
-    let query = { status: 'published' };
+    // Base query
+    let query = {};
+    
+    // If myPosts is true and user is authenticated, get only their posts
+    if (myPosts === 'true' && req.user) {
+      query.author = req.user._id;
+    } else {
+      // Otherwise, only get published posts
+      query.status = 'published';
+    }
     
     // Filter by category if provided
     if (category && category !== 'all') {
