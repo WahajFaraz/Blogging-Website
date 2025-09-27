@@ -15,7 +15,6 @@ const config = {
   },
 
   db: {
-    // Hardcoded MongoDB connection string
     uri: "mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     options: {
       serverSelectionTimeoutMS: 10000,

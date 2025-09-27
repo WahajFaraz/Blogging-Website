@@ -45,26 +45,30 @@ const createApp = () => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      // In development, allow localhost origins
-      if (config.server.nodeEnv === 'production') {
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'http://localhost:5173'
-        ];
-        
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
+      // List of allowed origins
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'https://blogspace-gamma.vercel.app',
+        'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
+        'https://blogspace-git-develop-wahajfarazs-projects.vercel.app'
+      ];
+      
+      // Add the configured client URL if it's not already in the list
+      if (config.server.clientUrl && !allowedOrigins.includes(config.server.clientUrl)) {
+        allowedOrigins.push(config.server.clientUrl);
       }
       
-      // In production, only allow the configured client URL
-      if (origin === config.server.clientUrl) {
+      // Check if the origin is allowed
+      if (allowedOrigins.includes(origin) || 
+          config.server.nodeEnv === 'development' || 
+          origin.endsWith('.vercel.app')) {
         return callback(null, true);
       }
       
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
     },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
       'Content-Type', 
       'Authorization', 
@@ -73,17 +77,22 @@ const createApp = () => {
       'Origin',
       'X-Content-Range',
       'Set-Cookie',
-      'Content-Length'
+      'Content-Length',
+      'Access-Control-Allow-Credentials',
+      'X-Access-Token'
     ],
     exposedHeaders: [
       'Content-Range',
       'X-Content-Range',
-      'Content-Length'
+      'Content-Length',
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Credentials'
     ],
     credentials: true,
     maxAge: 86400, // Cache preflight request for 24 hours
     preflightContinue: false,
-    optionsSuccessStatus: 200 // Changed from 204 to 200 for better Vercel compatibility
+    optionsSuccessStatus: 200, // Changed from 204 to 200 for better Vercel compatibility
+    allowedOrigins: true // Allow credentials to be sent with the request
   };
   
   // Apply CORS with the options
