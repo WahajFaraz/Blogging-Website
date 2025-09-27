@@ -66,14 +66,14 @@ const handleResponse = async (response) => {
 };
 // Helper function to create request options
 const createOptions = (method, data = null, token = null) => {
+  // Start with default options including CORS settings
   const options = {
     method,
     headers: {
       ...config.api.defaultHeaders,
-      'Accept': 'application/json',
     },
-    credentials: 'include', // Include cookies in requests
-    mode: 'cors', // Enable CORS
+    // Apply CORS settings from config
+    ...config.api.cors,
   };
 
   // Add auth token if provided

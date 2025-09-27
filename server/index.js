@@ -50,18 +50,22 @@ const createApp = () => {
     allowedOrigins.includes(origin) ||
     origin.endsWith('.vercel.app');
 
+  // Function to handle CORS origin with credentials
+  const handleCorsOrigin = (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is allowed
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      // For credentialed requests, we need to return the exact origin, not true
+      return callback(null, origin);
+    }
+    
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  };
+
   const corsOptions = {
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Check if the origin is allowed
-      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        return callback(null, true);
-      }
-      
-      return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
+    origin: handleCorsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -69,8 +73,7 @@ const createApp = () => {
       'Authorization',
       'X-Requested-With',
       'Accept',
-      'Origin',
-      'Access-Control-Allow-Credentials'
+      'Origin'
     ],
     exposedHeaders: ['Content-Length', 'Authorization'],
     optionsSuccessStatus: 200,
