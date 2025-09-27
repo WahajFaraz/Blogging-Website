@@ -56,7 +56,8 @@ const createApp = () => {
 
   // Function to validate origin
   const originIsAllowed = (origin) => {
-    if (!origin) return false;
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return true;
     return allowedOrigins.includes(origin) || 
            config.server.nodeEnv === 'development' || 
            origin.endsWith('.vercel.app');
@@ -107,9 +108,16 @@ const createApp = () => {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // Set CORS headers for allowed origins
-    if (originIsAllowed(origin)) {
-      res.header('Access-Control-Allow-Origin', origin);
+    // Set CORS headers for allowed origins or direct access
+    if (!origin || originIsAllowed(origin)) {
+      // For direct access (no origin) or allowed origins
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+      } else {
+        // For direct access, allow any origin (since it's a direct API call)
+        res.header('Access-Control-Allow-Origin', '*');
+      }
+      
       res.header('Access-Control-Allow-Credentials', 'true');
       
       // Handle preflight requests
@@ -120,9 +128,15 @@ const createApp = () => {
         res.header('Access-Control-Expose-Headers', corsOptions.exposedHeaders.join(','));
         return res.status(200).end();
       }
+      
+      // Continue to the next middleware
+      return next();
     }
     
-    next();
+    // If we get here, the origin is not allowed
+    const error = new Error(`Not allowed by CORS. Origin: ${origin || 'undefined'}`);
+    error.status = 403;
+    next(error);
   });
 
   // Rate limiting
@@ -173,6 +187,9 @@ const createApp = () => {
 
   // Health check endpoint with database connection check
   app.get('/', async (req, res) => {
+    // Check if this is a direct API call (no origin header)
+    const isDirectAccess = !req.headers.origin;
+    
     // Safely get connection state
     let dbState = 'unknown';
     let mongoState = 'unknown';
@@ -250,8 +267,10 @@ const createApp = () => {
       memoryUsage: process.memoryUsage()
     };
 
-    console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
-    console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
+      console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
+    }
 
     // Try to connect to database if not connected
     try {
@@ -279,6 +298,82 @@ const createApp = () => {
       };
       console.error('Failed to connect to database in health check:', connectionError);
       dbState = 'connection failed';
+    }
+    
+    // For direct access, return a simple HTML response
+    if (isDirectAccess) {
+      const htmlResponse = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>BlogSpace API</title>
+            <style>
+              body { 
+                font-family: Arial, sans-serif; 
+                line-height: 1.6; 
+                max-width: 800px; 
+                margin: 0 auto; 
+                padding: 20px;
+                color: #333;
+              }
+              h1 { color: #2c3e50; }
+              .status { 
+                background: #f8f9fa; 
+                padding: 15px; 
+                border-radius: 5px; 
+                margin: 20px 0;
+              }
+              .status.connected { border-left: 5px solid #2ecc71; }
+              .status.disconnected { border-left: 5px solid #e74c3c; }
+              .endpoints { margin-top: 30px; }
+              .endpoint { 
+                background: #f8f9fa; 
+                padding: 10px; 
+                margin: 10px 0; 
+                border-radius: 3px;
+                font-family: monospace;
+              }
+              .method { 
+                display: inline-block; 
+                width: 70px; 
+                font-weight: bold; 
+                color: #3498db;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>BlogSpace API</h1>
+            <p>Welcome to the BlogSpace API. This is a RESTful API service for the BlogSpace application.</p>
+            
+            <div class="status ${dbState === 'connected' ? 'connected' : 'disconnected'}">
+              <h3>API Status: ${dbState === 'connected' ? '🟢 Connected' : '🔴 Disconnected'}</h3>
+              ${dbState !== 'connected' ? 
+                `<p>There was an issue connecting to the database. Please check the server logs for more details.</p>` : 
+                '<p>All systems operational. The API is up and running.</p>'
+              }
+            </div>
+            
+            <div class="endpoints">
+              <h3>Available Endpoints:</h3>
+              <div class="endpoint"><span class="method">GET</span> /api/v1/blogs - Get all blogs</div>
+              <div class="endpoint"><span class="method">POST</span> /api/v1/blogs - Create a new blog</div>
+              <div class="endpoint"><span class="method">GET</span> /api/v1/blogs/:id - Get a single blog</div>
+              <div class="endpoint"><span class="method">PUT</span> /api/v1/blogs/:id - Update a blog</div>
+              <div class="endpoint"><span class="method">DELETE</span> /api/v1/blogs/:id - Delete a blog</div>
+              <div class="endpoint"><span class="method">POST</span> /api/v1/auth/register - Register a new user</div>
+              <div class="endpoint"><span class="method">POST</span> /api/v1/auth/login - Login user</div>
+            </div>
+            
+            <p>For detailed API documentation, please refer to the <a href="https://documenter.getpostman.com/view/your-docs-link" target="_blank">API Documentation</a>.</p>
+            
+            <footer style="margin-top: 40px; font-size: 0.9em; color: #7f8c8d;">
+              <p>Environment: ${config.server.nodeEnv} | Version: 1.0.0 | Status: ${dbState}</p>
+            </footer>
+          </body>
+        </html>
+      `;
+      
+      return res.status(200).set('Content-Type', 'text/html').send(htmlResponse);
     }
 
     // Try to ping the database if we think we're connected
