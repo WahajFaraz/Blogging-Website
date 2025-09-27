@@ -153,14 +153,34 @@ const createApp = () => {
     let dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
     let pingResult = 'not attempted';
     let pingError = null;
+    let connectionError = null;
+
+    // Log environment information
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
+      USING_CONFIG_URI: !!config.db.uri,
+      CONFIG_DB_URI: config.db.uri ? '***configured***' : 'not configured',
+      VERIFIED_ENV_VARS: Object.keys(process.env).filter(k => k.includes('MONGODB') || k.includes('MONGO') || k.includes('DB'))
+    };
+    console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
 
     // Try to connect to database if not connected
     if (mongoose.connection.readyState !== 1) {
       try {
+        console.log('Attempting to establish database connection...');
         await connectToMongoDB();
         dbState = 'connected';
+        console.log('Database connection established successfully');
       } catch (err) {
-        console.error('Failed to connect to database in health check:', err);
+        connectionError = {
+          name: err.name,
+          message: err.message,
+          code: err.code,
+          codeName: err.codeName,
+          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        };
+        console.error('Failed to connect to database in health check:', connectionError);
         dbState = 'connection failed';
       }
     }
@@ -208,9 +228,12 @@ const createApp = () => {
         port: mongoose.connection.port || 'not connected',
         models: Object.keys(mongoose.connection.models || {}),
         ping: pingResult,
-        error: pingError ? {
+        connectionError: connectionError || undefined,
+        pingError: pingError ? {
           message: pingError.message,
-          name: pingError.name
+          name: pingError.name,
+          code: pingError.code,
+          codeName: pingError.codeName
         } : undefined
       },
       vercel: {
@@ -383,17 +406,50 @@ const connectToMongoDB = async (options = {}) => {
       const safeUri = config.db.uri ? 
         config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@') : 
         'No URI configured';
-      console.log('MongoDB URI:', safeUri);
+      
+      console.log('Environment Variables:', {
+        NODE_ENV: process.env.NODE_ENV,
+        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
+        USING_CONFIG_URI: !!config.db.uri,
+        SAFE_URI: safeUri
+      });
 
-      // Create a new connection with the options from config
-      await mongoose.connect(config.db.uri, config.db.options);
-      
-      console.log('MongoDB connected successfully');
-      
-      // Cache the connection
-      cachedDb = mongoose.connection;
-      
-      return mongoose.connection;
+      if (!config.db.uri) {
+        throw new Error('MongoDB URI is not configured. Please check your environment variables.');
+      }
+
+      try {
+        // Create a new connection with the options from config
+        console.log('Attempting to connect to MongoDB...');
+        await mongoose.connect(config.db.uri, {
+          ...config.db.options,
+          serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+          socketTimeoutMS: 45000, // 45 seconds socket timeout
+        });
+        
+        console.log('MongoDB connected successfully');
+        console.log('MongoDB Connection Details:', {
+          host: mongoose.connection.host,
+          port: mongoose.connection.port,
+          name: mongoose.connection.name,
+          readyState: mongoose.connection.readyState,
+          models: Object.keys(mongoose.connection.models)
+        });
+        
+        // Cache the connection
+        cachedDb = mongoose.connection;
+        
+        return mongoose.connection;
+      } catch (connectError) {
+        console.error('MongoDB connection error details:', {
+          name: connectError.name,
+          message: connectError.message,
+          code: connectError.code,
+          codeName: connectError.codeName,
+          error: JSON.stringify(connectError, Object.getOwnPropertyNames(connectError))
+        });
+        throw connectError;
+      }
       
     } catch (error) {
       console.error(`MongoDB connection error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
