@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { createApiUrl } from "../lib/urlUtils";
 import { Button } from "../components/ui/button";
@@ -9,6 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { toast } from "sonner";
 import { 
   Heart, 
   MessageCircle, 
@@ -29,6 +30,7 @@ import api from "../lib/api";
 const BlogDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token, isAuthenticated } = useAuth();
   
   const [blog, setBlog] = useState(null);
@@ -59,7 +61,7 @@ const BlogDetail = () => {
   };
 
   const handleLike = async () => {
-    if (!token) {
+    if (!isAuthenticated || !token) {
       navigate('/login', { state: { from: location.pathname } });
       return;
     }
@@ -108,7 +110,7 @@ const BlogDetail = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
 
     try {
       setDeleting(true);
@@ -158,8 +160,8 @@ const BlogDetail = () => {
     );
   }
 
-  const isAuthor = user && blog.author._id === user._id;
-  const isLiked = blog.isLiked || false;
+  const isAuthor = user && blog?.author?._id === user?._id;
+  const isLiked = blog?.isLiked || false;
 
   return (
       <div className="container mx-auto px-4 max-w-4xl">
