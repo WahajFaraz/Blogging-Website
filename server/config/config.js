@@ -18,26 +18,29 @@ const config = {
   },
 
   db: {
-    uri: process.env.MONGODB_URI || "mongodb+srv://admin_00:0QHFFgpK6ecaP7LB@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    // Always use environment variable in production for security
+    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/blogspace',
     options: {
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000, // Add explicit connect timeout
-      maxPoolSize: 10, // Maximum number of connections in the connection pool
-      minPoolSize: 1,  // Minimum number of connections in the connection pool
-      maxIdleTimeMS: 10000, // Maximum time a connection can be idle before being closed
+      // Timeout settings
+      serverSelectionTimeoutMS: 10000,  // Timeout for server selection (10 seconds)
+      socketTimeoutMS: 45000,           // Socket timeout (45 seconds)
+      connectTimeoutMS: 10000,          // Connection timeout (10 seconds)
+      
+      // Connection pool settings
+      maxPoolSize: 10,                  // Maximum number of connections in the pool
+      minPoolSize: 1,                   // Minimum number of connections in the pool
+      maxIdleTimeMS: 30000,             // Close idle connections after 30s
+      
+      // Retry settings
       retryWrites: true,
       retryReads: true,
-      // Newer MongoDB driver settings
+      
+      // MongoDB driver settings
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      // Auto-reconnect settings
-      autoIndex: false, // Don't build indexes automatically in production
-      // Enable server selection retry
-      serverSelectionTryOnce: false,
-      // Keep the connection alive
-      keepAlive: true,
-      keepAliveInitialDelay: 300000, // 5 minutes
+      
+      // Auto-indexing (disabled in production)
+      autoIndex: process.env.NODE_ENV !== 'production',
     },
   },
 

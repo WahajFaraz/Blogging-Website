@@ -132,18 +132,73 @@ const createApp = () => {
   app.use(compression());
 
   // Health check endpoint
-  app.get('/', (req, res) => {
+  app.get('/', async (req, res) => {
+    const dbStatus = {
+      state: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
+      readyState: mongoose.connection.readyState,
+      host: mongoose.connection.host || 'not connected',
+      name: mongoose.connection.name || 'not connected',
+      port: mongoose.connection.port || 'not connected',
+      models: Object.keys(mongoose.connection.models || {})
+    };
+
+    let pingResult = 'not attempted';
+    let pingError = null;
+
+    // Try to ping the database if we think we're connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const start = Date.now();
+        await mongoose.connection.db.admin().ping();
+        pingResult = `ok (${Date.now() - start}ms)`;
+      } catch (err) {
+        pingResult = 'failed';
+        pingError = {
+          message: err.message,
+          name: err.name,
+          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        };
+      }
+    }
+
+    dbStatus.ping = pingResult;
+    if (pingError) dbStatus.pingError = pingError;
+
     const status = {
       status: 'ok',
-      timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      environment: config.server.nodeEnv,
-      version: process.env.npm_package_version || '1.0.0'
+      timestamp: new Date().toISOString(),
+      node: {
+        version: process.version,
+        platform: process.platform,
+        memory: process.memoryUsage(),
+        pid: process.pid,
+        uptime: process.uptime()
+      },
+      app: {
+        name: 'BlogSpace API',
+        version: process.env.npm_package_version || '1.0.0',
+        environment: config.server.nodeEnv,
+        node_env: process.env.NODE_ENV
+      },
+      database: dbStatus,
+      vercel: {
+        isVercel: !!process.env.VERCEL,
+        environment: process.env.VERCEL_ENV,
+        region: process.env.VERCEL_REGION,
+        url: process.env.VERCEL_URL
+      },
+      env: {
+        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not set',
+        NODE_ENV: process.env.NODE_ENV
+      }
     };
     
     // Set cache headers
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
     
     // Return status
     res.status(200).json(status);
@@ -168,51 +223,97 @@ const createApp = () => {
   app.use('/api/v1/*', (req, res) => {
     res.status(404).json({ 
       status: 'error',
-      message: 'API endpoint not found',
-      path: req.originalUrl,
-      availableEndpoints: ['/api/v1/users', '/api/v1/blogs', '/api/v1/media']
+      message: 'API endpoint not found'
     });
   });
 
   // Global error handler
   app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    // Log the error
+    console.error('Error:', {
+      message: err.message,
+      name: err.name,
+      stack: err.stack,
+      code: err.code,
+      path: req.path,
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
     
     // If headers already sent, delegate to the default Express error handler
     if (res.headersSent) {
       return next(err);
     }
     
-    const statusCode = err.statusCode || 500;
-    const response = {
-      status: 'error',
-      message: process.env.NODE_ENV === 'production' 
-        ? 'Internal Server Error' 
-        : err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV !== 'production' && { 
-        stack: err.stack,
-        error: err.message 
-      })
-    };
+    // Default error status and message
+    let statusCode = err.statusCode || 500;
+    let message = err.message || 'Internal Server Error';
+    let code = err.code;
+    let details = {};
     
     // Handle specific error types
     if (err.name === 'ValidationError') {
-      response.message = 'Validation Error';
-      response.errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json(response);
+      statusCode = 400;
+      message = 'Validation Error';
+      details = Object.values(err.errors).map(e => ({
+        field: e.path,
+        message: e.message,
+        type: e.kind
+      }));
+    } 
+    else if (err.name === 'MongoError' || err.name === 'MongoServerError') {
+      // Handle MongoDB specific errors
+      switch(err.code) {
+        case 11000: // Duplicate key
+          statusCode = 409;
+          message = 'Duplicate key error';
+          const key = Object.keys(err.keyPattern || {})[0];
+          if (key) {
+            details = { [key]: `Value '${err.keyValue[key]}' already exists` };
+          }
+          break;
+        case 'ECONNREFUSED':
+        case 'ETIMEDOUT':
+          statusCode = 503;
+          message = 'Database connection error';
+          break;
+        default:
+          message = 'Database error';
+      }
+    }
+    else if (err.name === 'JsonWebTokenError') {
+      statusCode = 401;
+      message = 'Invalid token';
+    }
+    else if (err.name === 'TokenExpiredError') {
+      statusCode = 401;
+      message = 'Token expired';
+    }
+    else if (err.name === 'UnauthorizedError') {
+      statusCode = 401;
+      message = 'Unauthorized';
+    }
+    else if (err.name === 'NotFoundError') {
+      statusCode = 404;
+      message = 'Resource not found';
     }
     
-    if (err.name === 'CastError') {
-      response.message = 'Invalid ID format';
-      return res.status(400).json(response);
+    // Prepare error response
+    const errorResponse = {
+      status: 'error',
+      statusCode,
+      message,
+      ...(code && { code }),
+      ...(Object.keys(details).length > 0 && { details })
+    };
+    
+    // Include stack trace in development
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.stack = err.stack;
     }
     
-    // For Vercel, ensure we don't send stack traces in production
-    if (process.env.NODE_ENV === 'production') {
-      delete response.stack;
-    }
-    
-    res.status(statusCode).json(response);
+    // Send error response
+    res.status(statusCode).json(errorResponse);
   });
 
   // 404 handler for all other routes
@@ -229,114 +330,172 @@ const createApp = () => {
 // Create the Express app
 const app = createApp();
 
-// Connect to MongoDB with retry logic
-const connectWithRetry = async (maxRetries = 3, attempt = 1) => {
-  try {
-    // If we have a cached connection, check if it's still alive
-    if (cachedDb) {
-      try {
-        // Check if the connection is still alive
-        await mongoose.connection.db.admin().ping();
-        console.log('Using existing database connection');
-        return cachedDb;
-      } catch (error) {
-        console.log('Cached connection is dead, creating a new one');
-        cachedDb = null;
+// ... (rest of the code remains the same)
+// Connect to MongoDB
+const connectToMongoDB = async (options = {}) => {
+  const { retry = true, maxRetries = 3, retryDelay = 2000 } = options;
+  let retryCount = 0;
+
+  const attemptConnection = async () => {
+    try {
+      // Return cached connection if available and connected
+      if (cachedDb && mongoose.connection.readyState === 1) {
+        try {
+          // Verify the connection is still alive
+          await mongoose.connection.db.admin().ping();
+          console.log('Using existing database connection');
+          return mongoose.connection;
+        } catch (pingError) {
+          console.log('Cached connection is dead, creating a new one');
+          cachedDb = null;
+        }
       }
+
+      console.log('Connecting to MongoDB...');
+      
+      // Log connection attempt (without credentials)
+      const safeUri = config.db.uri ? 
+        config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@') : 
+        'No URI configured';
+      console.log('MongoDB URI:', safeUri);
+
+      // Create a new connection with the options from config
+      await mongoose.connect(config.db.uri, config.db.options);
+      
+      console.log('MongoDB connected successfully');
+      
+      // Cache the connection
+      cachedDb = mongoose.connection;
+      
+      return mongoose.connection;
+      
+    } catch (error) {
+      console.error(`MongoDB connection error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+      
+      // If we should retry and haven't exceeded max retries
+      if (retry && retryCount < maxRetries - 1) {
+        retryCount++;
+        console.log(`Retrying connection in ${retryDelay}ms... (${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return attemptConnection();
+      }
+      
+      throw error; // Re-throw the error if we're not retrying or have exceeded max retries
     }
+  };
 
-    // Create a new connection
-    const options = {
-      ...config.db.options,
-      serverSelectionTimeoutMS: 5000, // Reduce timeout for faster failure in serverless
-      heartbeatFrequencyMS: 10000, // Send pings more frequently
-    };
-
-    await mongoose.connect(config.db.uri, options);
-    console.log('MongoDB connected successfully');
+  // Set up event listeners (only once)
+  if (!mongoose.connection._events.connected) {
+    mongoose.connection.on('connected', () => {
+      console.log('MongoDB connected event');
+    });
     
-    // Cache the connection
-    cachedDb = mongoose.connection;
-    
-    // Handle connection events
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
-      cachedDb = null; // Clear cache on error
     });
     
     mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected');
-      cachedDb = null; // Clear cache on disconnect
+      console.log('MongoDB disconnected event');
+      cachedDb = null;
+      
+      // Attempt to reconnect if we're not already in the process of reconnecting
+      if (process.env.NODE_ENV === 'production') {
+        console.log('Attempting to reconnect to MongoDB...');
+        setTimeout(() => {
+          connectToMongoDB().catch(err => {
+            console.error('Failed to reconnect to MongoDB:', err);
+          });
+        }, 5000); // Wait 5 seconds before attempting to reconnect
+      }
+    });
+  }
+
+  return attemptConnection();
+};
+
+// Function to start the server
+const startServer = async () => {
+  // Try to connect to MongoDB
+  try {
+    console.log('Starting server...');
+    
+    // In production, we'll let the app start even if MongoDB is not available initially
+    // The connection will be established on the first request
+    if (process.env.NODE_ENV === 'development') {
+      await connectToMongoDB();
+      console.log('MongoDB connection established');
+    } else {
+      console.log('Production mode: MongoDB connection will be established on first request');
+    }
+    
+    const port = config.server.port;
+    const server = app.listen(port, () => {
+      console.log(`Server running in ${config.server.nodeEnv} mode on port ${port}`);
+      console.log(`API Documentation available at http://localhost:${port}/api-docs`);
+      console.log(`Health check: http://localhost:${port}/`);
     });
     
-    return mongoose.connection;
-  } catch (error) {
-    console.error(`MongoDB connection attempt ${attempt} failed:`, error.message);
+    // Handle server shutdown gracefully
+    const shutdown = async () => {
+      console.log('Shutting down server...');
+      
+      // Close the server first to stop accepting new connections
+      server.close(async () => {
+        console.log('Server closed');
+        
+        // Then close MongoDB connection if it exists
+        if (mongoose.connection && mongoose.connection.readyState === 1) {
+          try {
+            await mongoose.connection.close(false);
+            console.log('MongoDB connection closed');
+          } catch (err) {
+            console.error('Error closing MongoDB connection:', err);
+          }
+        }
+        
+        // Exit the process
+        process.exit(0);
+      });
+      
+      // Force exit after 10 seconds if the above takes too long
+      setTimeout(() => {
+        console.error('Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+      }, 10000);
+    };
     
-    if (attempt < maxRetries) {
-      console.log(`Retrying connection... (${attempt + 1}/${maxRetries})`);
-      // Wait for 2 seconds before retrying
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return connectWithRetry(maxRetries, attempt + 1);
-    } else {
-      console.error('Max retries reached. Could not connect to MongoDB');
-      throw error; // Don't exit process in serverless
-    }
+    // Handle process termination
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+    
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught Exception:', error);
+      shutdown();
+    });
+    
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+    
+    return server;
+    
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
 };
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-  const startServer = async () => {
-    try {
-      await connectWithRetry();
-      
-      const port = config.server.port;
-      const server = app.listen(port, () => {
-        console.log(`Server running in ${config.server.nodeEnv} mode on port ${port}`);
-        console.log(`API Documentation available at http://localhost:${port}/api-docs`);
-      });
-      
-      // Handle server shutdown gracefully
-      const shutdown = async () => {
-        console.log('Shutting down server...');
-        server.close(async () => {
-          console.log('Server closed');
-          if (mongoose.connection) {
-            await mongoose.connection.close(false);
-            console.log('MongoDB connection closed');
-          }
-          process.exit(0);
-        });
-      };
-      
-      // Handle process termination
-      process.on('SIGTERM', shutdown);
-      process.on('SIGINT', shutdown);
-      
-      return server;
-    } catch (error) {
-      console.error('Failed to start server:', error);
-      process.exit(1);
-    }
-  };
-  
+// Start the server if this file is run directly
+if (process.env.NODE_ENV !== 'test') {
   startServer().catch(error => {
     console.error('Failed to start server:', error);
     process.exit(1);
   });
-} else {
-  // For production (Vercel serverless functions)
-  (async () => {
-    try {
-      await connectWithRetry();
-      console.log('Connected to MongoDB in production');
-    } catch (error) {
-      console.error('Failed to connect to MongoDB in production:', error);
-      process.exit(1);
-    }
-  })();
 }
 
-// Export the Express app for Vercel
+// For testing purposes
+export { connectToMongoDB, startServer };
+
 export default app;
