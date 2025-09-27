@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import Blog from '../models/Blog.js';
 import { auth, blacklistToken } from '../middleware/auth.js';
 import { deleteFile, uploadImage } from '../utils/cloudinary.js';
 import { uploadMiddleware, validateImage, validateFileSize } from '../middleware/upload.js';
@@ -182,6 +183,7 @@ router.post('/login', [
 
 
 // Get current user's profile
+
 router.get('/me', auth, async (req, res) => {
   try {
     if (!req.user) {
@@ -192,27 +194,35 @@ router.get('/me', auth, async (req, res) => {
     const user = await User.findById(req.user._id)
       .select('-password -__v')
       .populate('followers', 'username fullName avatar')
-      .populate('following', 'username fullName avatar')
+      .populate('following', 'username fullName avatar');
       
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get user's published posts
-    const Blog = mongoose.model('Blog');
-    const userPosts = await Blog.find({ 
-      author: user._id, 
-      status: 'published' 
-    })
-    .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
-    .sort({ publishedAt: -1 });
-    
-    // Convert user to plain object and add posts
-    const userWithPosts = user.toObject();
-    userWithPosts.posts = userPosts;
-    userWithPosts.postsCount = userPosts.length;
-    
-    res.json(userWithPosts);
+    try {
+      // Get user's published posts
+      const userPosts = await Blog.find({ 
+        author: user._id, 
+        status: 'published' 
+      })
+      .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
+      .sort({ publishedAt: -1 });
+      
+      // Convert user to plain object and add posts
+      const userWithPosts = user.toObject();
+      userWithPosts.posts = userPosts || [];
+      userWithPosts.postsCount = userPosts.length;
+      
+      return res.json(userWithPosts);
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+      // If there's an error getting posts, still return the user without posts
+      const userWithoutPosts = user.toObject();
+      userWithoutPosts.posts = [];
+      userWithoutPosts.postsCount = 0;
+      return res.json(userWithoutPosts);
+    }
   } catch (error) {
     console.error('Error fetching user profile:', error);
     res.status(500).json({ error: 'Server error' });
@@ -338,21 +348,29 @@ router.get('/:username', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get user's published posts
-    const Blog = mongoose.model('Blog');
-    const userPosts = await Blog.find({ 
-      author: user._id, 
-      status: 'published' 
-    })
-    .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
-    .sort({ publishedAt: -1 });
-    
-    // Convert user to plain object and add posts
-    const userWithPosts = user.toObject();
-    userWithPosts.posts = userPosts;
-    userWithPosts.postsCount = userPosts.length;
-
-    res.json(userWithPosts);
+    try {
+      // Get user's published posts
+      const userPosts = await Blog.find({ 
+        author: user._id, 
+        status: 'published' 
+      })
+      .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
+      .sort({ publishedAt: -1 });
+      
+      // Convert user to plain object and add posts
+      const userWithPosts = user.toObject();
+      userWithPosts.posts = userPosts || [];
+      userWithPosts.postsCount = userPosts.length;
+      
+      return res.json(userWithPosts);
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+      // If there's an error getting posts, still return the user without posts
+      const userWithoutPosts = user.toObject();
+      userWithoutPosts.posts = [];
+      userWithoutPosts.postsCount = 0;
+      return res.json(userWithoutPosts);
+    }
   } catch (error) {
     console.error('Get public profile error:', error);
     res.status(500).json({ error: 'Server error' });
