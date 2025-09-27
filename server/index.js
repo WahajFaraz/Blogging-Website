@@ -16,787 +16,150 @@ import userRoutes from './routes/user.js';
 import blogRoutes from './routes/blog.js';
 import mediaRoutes from './routes/media.js';
 
-// Global variable to cache the connection across function invocations
 let cachedDb = null;
 
-// ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const createApp = () => {
   const app = express();
 
-  app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    crossOriginEmbedderPolicy: false,
-  }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
+    })
+  );
 
   // Logging
-  if (config.server.nodeEnv === 'production') {
-    app.use(morgan('dev'));
-  } else {
-    app.use(morgan('combined'));
-  }
+  app.use(morgan(config.server.nodeEnv === 'production' ? 'combined' : 'dev'));
 
-  // Configure CORS with explicit headers and preflight caching
+  /** ---------------------- CORS FIX ------------------------- */
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'https://blogspace-gamma.vercel.app',
+    'https://blogging-website-lyart.vercel.app',
     'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
     'https://blogspace-git-develop-wahajfarazs-projects.vercel.app',
-    'https://blogging-website-lyart.vercel.app',
-    'https://blogging-website-2jbqc17qm-wahaj-farazs-projects.vercel.app'
+    'https://blogging-website-2jbqc17qm-wahaj-farazs-projects.vercel.app',
   ];
 
-  // Add the configured client URL if it's not already in the list
-  if (config.server.clientUrl && !allowedOrigins.includes(config.server.clientUrl)) {
-    allowedOrigins.push(config.server.clientUrl);
-  }
+  const originIsAllowed = (origin) =>
+    !origin ||
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app');
 
-  // Function to validate origin
-  const originIsAllowed = (origin) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return true;
-    return allowedOrigins.includes(origin) || 
-           config.server.nodeEnv === 'development' || 
-           origin.endsWith('.vercel.app');
-  };
-
-  // CORS configuration
   const corsOptions = {
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      if (originIsAllowed(origin)) {
-        return callback(null, true);
-      }
-      
-      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
-      return callback(new Error(msg), false);
+    origin(origin, callback) {
+      if (originIsAllowed(origin)) return callback(null, origin || true);
+      return callback(
+        new Error(`CORS blocked for origin: ${origin}`),
+        false
+      );
     },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
+      'Content-Type',
+      'Authorization',
       'X-Requested-With',
       'Accept',
       'Origin',
-      'X-Content-Range',
-      'Set-Cookie',
-      'Content-Length',
-      'Access-Control-Allow-Credentials',
-      'X-Access-Token'
     ],
-    exposedHeaders: [
-      'Content-Range',
-      'X-Content-Range',
-      'Content-Length',
-      'Access-Control-Allow-Origin',
-      'Access-Control-Allow-Credentials'
-    ],
-    credentials: true,
-    maxAge: 86400, // Cache preflight request for 24 hours
-    preflightContinue: false,
-    optionsSuccessStatus: 200
+    exposedHeaders: ['Content-Length'],
+    optionsSuccessStatus: 200,
   };
-  
-  // Apply CORS middleware
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    
-    // Check if origin is allowed
-    if (origin && originIsAllowed(origin)) {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Credentials', 'true');
-      
-      // Handle preflight requests
-      if (req.method === 'OPTIONS') {
-        res.header('Access-Control-Allow-Methods', corsOptions.methods.join(','));
-        res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
-        res.header('Access-Control-Max-Age', corsOptions.maxAge);
-        res.header('Access-Control-Expose-Headers', corsOptions.exposedHeaders.join(','));
-        return res.status(200).end();
-      }
-    } else if (req.method === 'OPTIONS') {
-      // Always respond to OPTIONS with 200, even for non-allowed origins
-      // This is necessary for preflight requests to work
-      return res.status(200).end();
-    } else if (origin) {
-      // Only block actual requests from non-allowed origins
-      const error = new Error(`Not allowed by CORS. Origin: ${origin}`);
-      error.status = 403;
-      return next(error);
-    }
-    
-    next();
-  });
-  
-  // Apply CORS with the options (this is still needed for non-OPTIONS requests)
+
+  // handle OPTIONS first
+  app.options('*', cors(corsOptions));
   app.use(cors(corsOptions));
 
-  // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.status(200).json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: process.env.NODE_ENV || 'development'
-    });
-  });
+  /** --------------------------------------------------------- */
+
+  // Health check
+  app.get('/api/health', (req, res) =>
+    res.status(200).json({ status: 'ok', time: new Date() })
+  );
 
   // Rate limiting
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
-    message: 'Too many requests from this IP, please try again in 15 minutes!'
   });
-
-  // Apply rate limiting to API routes
   app.use('/api', limiter);
   app.use('/api/v1', limiter);
 
-  // Body parser, reading data from body into req.body
+  // Parsers & Security
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-  // Data sanitization against NoSQL query injection
   app.use(mongoSanitize());
-
-  // Data sanitization against XSS
   app.use(xss());
-
-  // Prevent parameter pollution
   app.use(hpp());
-
-  // Compress all responses
   app.use(compression());
 
   // Database connection middleware
   const ensureDbConnection = async (req, res, next) => {
     try {
-      if (mongoose.connection.readyState !== 1) {
-        console.log('Establishing database connection...');
-        await connectToMongoDB();
-      }
+      if (mongoose.connection.readyState !== 1) await connectToMongoDB();
       next();
-    } catch (error) {
-      console.error('Database connection error:', error);
-      next(error);
+    } catch (e) {
+      next(e);
     }
   };
-
-  // Apply the middleware to all API routes
   app.use('/api', ensureDbConnection);
 
-  // Mount API routes
+  // Routes
   app.use('/api/v1/blogs', blogRoutes);
   app.use('/api/v1/users', userRoutes);
   app.use('/api/v1/media', mediaRoutes);
 
-  // Health check endpoint with database connection check
-  app.get('/', async (req, res) => {
-    // Check if this is a direct API call (no origin header)
-    const isDirectAccess = !req.headers.origin;
-    
-    // Safely get connection state
-    let dbState = 'unknown';
-    let mongoState = 'unknown';
-    let mongoConnection = null;
-    let connectionError = null;
+  // 404
+  app.use('/api/v1/*', (req, res) =>
+    res.status(404).json({ message: 'API endpoint not found' })
+  );
 
-    try {
-      // Log the MongoDB URI being used (without credentials)
-      const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
-      console.log('MongoDB Connection Attempt:', {
-        uriStartsWith: config.db.uri.startsWith('mongodb+srv://') ? 'mongodb+srv://' : 'mongodb://',
-        safeUri: safeUri,
-        hasCredentials: config.db.uri.includes('@'),
-        nodeEnv: process.env.NODE_ENV
-      });
-
-      // Get MongoDB connection state safely
-      if (mongoose.connection) {
-        mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
-        mongoConnection = {
-          readyState: mongoose.connection.readyState,
-          host: mongoose.connection.host,
-          port: mongoose.connection.port,
-          name: mongoose.connection.name,
-          models: mongoose.connection.models ? Object.keys(mongoose.connection.models) : []
-        };
-      }
-      dbState = mongoState;
-
-      // If not connected, try to connect
-      if (mongoose.connection.readyState !== 1) {
-        console.log('Attempting to establish database connection...');
-        await connectToMongoDB();
-        dbState = 'connected';
-        console.log('Database connection established successfully');
-      }
-    } catch (e) {
-      console.error('Error in health check:', e);
-      dbState = 'connection error';
-      connectionError = {
-        name: e.name,
-        message: e.message,
-        stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
-      };
-    }
-
-    let pingResult = 'not attempted';
-    let pingError = null;
-
-    // Log environment information
-    const envInfo = {
-      NODE_ENV: process.env.NODE_ENV,
-      MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
-      MONGODB_URI_STARTS_CORRECTLY: config.db.uri ?
-        (config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')) :
-        'no uri',
-      USING_CONFIG_URI: !!config.db.uri,
-      CONFIG_DB_URI: config.db.uri ? '***configured***' : 'not configured',
-      VERIFIED_ENV_VARS: Object.keys(process.env).filter(k => k.includes('MONGODB') || k.includes('MONGO') || k.includes('DB'))
-    };
-
-    // Log additional debug info
-    const debugInfo = {
-      configDbUri: config.db.uri ? '***configured***' : 'not configured',
-      mongooseConnection: {
-        readyState: mongoose.connection ? mongoose.connection.readyState : 'no connection',
-        host: mongoose.connection ? mongoose.connection.host : 'no connection',
-        port: mongoose.connection ? mongoose.connection.port : 'no connection',
-        name: mongoose.connection ? mongoose.connection.name : 'no connection',
-        models: mongoose.connection && mongoose.connection.models ?
-          Object.keys(mongoose.connection.models) : 'no models'
-      },
-      nodeVersion: process.version,
-      platform: process.platform,
-      memoryUsage: process.memoryUsage()
-    };
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
-      console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
-    }
-
-    // Try to connect to database if not connected
-    try {
-      // Check if we have a valid connection state
-      if (mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
-        if (mongoose.connection.readyState !== 1) {
-          console.log('Attempting to establish database connection...');
-          await connectToMongoDB();
-          dbState = 'connected';
-          console.log('Database connection established successfully');
-        }
-      } else {
-        console.log('Mongoose connection not properly initialized, attempting to connect...');
-        await connectToMongoDB();
-        dbState = 'connected';
-        console.log('Database connection established successfully');
-      }
-    } catch (err) {
-      connectionError = {
-        name: err.name,
-        message: err.message,
-        code: err.code,
-        codeName: err.codeName,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-      };
-      console.error('Failed to connect to database in health check:', connectionError);
-      dbState = 'connection failed';
-    }
-    
-    // For direct access, return a simple HTML response
-    if (isDirectAccess) {
-      const htmlResponse = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>BlogSpace API</title>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                line-height: 1.6; 
-                max-width: 800px; 
-                margin: 0 auto; 
-                padding: 20px;
-                color: #333;
-              }
-              h1 { color: #2c3e50; }
-              .status { 
-                background: #f8f9fa; 
-                padding: 15px; 
-                border-radius: 5px; 
-                margin: 20px 0;
-              }
-              .status.connected { border-left: 5px solid #2ecc71; }
-              .status.disconnected { border-left: 5px solid #e74c3c; }
-              .endpoints { margin-top: 30px; }
-              .endpoint { 
-                background: #f8f9fa; 
-                padding: 10px; 
-                margin: 10px 0; 
-                border-radius: 3px;
-                font-family: monospace;
-              }
-              .method { 
-                display: inline-block; 
-                width: 70px; 
-                font-weight: bold; 
-                color: #3498db;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>BlogSpace API</h1>
-            <p>Welcome to the BlogSpace API. This is a RESTful API service for the BlogSpace application.</p>
-            
-            <div class="status ${dbState === 'connected' ? 'connected' : 'disconnected'}">
-              <h3>API Status: ${dbState === 'connected' ? '🟢 Connected' : '🔴 Disconnected'}</h3>
-              ${dbState !== 'connected' ? 
-                `<p>There was an issue connecting to the database. Please check the server logs for more details.</p>` : 
-                '<p>All systems operational. The API is up and running.</p>'
-              }
-            </div>
-            
-            <div class="endpoints">
-              <h3>Available Endpoints:</h3>
-              <div class="endpoint"><span class="method">GET</span> /api/v1/blogs - Get all blogs</div>
-              <div class="endpoint"><span class="method">POST</span> /api/v1/blogs - Create a new blog</div>
-              <div class="endpoint"><span class="method">GET</span> /api/v1/blogs/:id - Get a single blog</div>
-              <div class="endpoint"><span class="method">PUT</span> /api/v1/blogs/:id - Update a blog</div>
-              <div class="endpoint"><span class="method">DELETE</span> /api/v1/blogs/:id - Delete a blog</div>
-              <div class="endpoint"><span class="method">POST</span> /api/v1/auth/register - Register a new user</div>
-              <div class="endpoint"><span class="method">POST</span> /api/v1/auth/login - Login user</div>
-            </div>
-            
-            <p>For detailed API documentation, please refer to the <a href="https://documenter.getpostman.com/view/your-docs-link" target="_blank">API Documentation</a>.</p>
-            
-            <footer style="margin-top: 40px; font-size: 0.9em; color: #7f8c8d;">
-              <p>Environment: ${config.server.nodeEnv} | Version: 1.0.0 | Status: ${dbState}</p>
-            </footer>
-          </body>
-        </html>
-      `;
-      
-      return res.status(200).set('Content-Type', 'text/html').send(htmlResponse);
-    }
-
-    // Try to ping the database if we think we're connected
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const start = Date.now();
-        await mongoose.connection.db.admin().ping();
-        pingResult = `ok (${Date.now() - start}ms)`;
-      } catch (err) {
-        console.error('Database ping failed:', err);
-        pingResult = 'failed';
-        dbState = 'ping failed';
-        pingError = {
-          message: err.message,
-          name: err.name,
-          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        };
-      }
-    }
-
-    res.json({
-      status: 'ok',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-      node: {
-        version: process.version,
-        platform: process.platform,
-        memory: process.memoryUsage(),
-        pid: process.pid,
-        uptime: process.uptime()
-      },
-      app: {
-        name: 'BlogSpace API',
-        version: '1.0.0',
-        environment: config.server.nodeEnv,
-        node_env: process.env.NODE_ENV || 'development'
-      },
-      database: {
-        state: dbState,
-        readyState: mongoose.connection.readyState,
-        host: mongoose.connection.host || 'not connected',
-        name: mongoose.connection.name || 'not connected',
-        port: mongoose.connection.port || 'not connected',
-        models: Object.keys(mongoose.connection.models || {}),
-        ping: pingResult,
-        connectionError: connectionError || undefined,
-        pingError: pingError ? {
-          message: pingError.message,
-          name: pingError.name,
-          code: pingError.code,
-          codeName: pingError.codeName
-        } : undefined
-      },
-      vercel: {
-        isVercel: Boolean(process.env.VERCEL || process.env.NOW_REGION),
-        environment: process.env.VERCEL_ENV || 'development',
-        region: process.env.VERCEL_REGION || 'local',
-        url: process.env.VERCEL_URL || 'http://localhost:5001'
-      },
-      env: {
-        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
-        NODE_ENV: process.env.NODE_ENV || 'development'
-      }
-    });
-    res.set('Surrogate-Control', 'no-store');
-
-    // Return status
-    res.status(200).json(status);
-  });
-
-  // API documentation endpoint
-  app.get('/api', (req, res) => {
-    res.json({
-      status: 'success',
-      message: 'Welcome to BlogSpace API',
-      version: '1.0.0',
-      endpoints: {
-        users: '/api/v1/users',
-        blogs: '/api/v1/blogs',
-        media: '/api/v1/media',
-        health: '/'
-      }
-    });
-  });
-
-  // 404 handler for API routes
-  app.use('/api/v1/*', (req, res) => {
-    res.status(404).json({
-      status: 'error',
-      message: 'API endpoint not found'
-    });
-  });
-
-  // Global error handler
+  // Error handler
   app.use((err, req, res, next) => {
-    // Log the error
-    console.error('Error:', {
-      message: err.message,
-      name: err.name,
-      stack: err.stack,
-      code: err.code,
-      path: req.path,
-      method: req.method,
-      timestamp: new Date().toISOString()
-    });
-
-    // If headers already sent, delegate to the default Express error handler
-    if (res.headersSent) {
-      return next(err);
-    }
-
-    // Default error status and message
-    let statusCode = err.statusCode || 500;
-    let message = err.message || 'Internal Server Error';
-    let code = err.code;
-    let details = {};
-
-    // Handle specific error types
-    if (err.name === 'ValidationError') {
-      statusCode = 400;
-      message = 'Validation Error';
-      details = Object.values(err.errors).map(e => ({
-        field: e.path,
-        message: e.message,
-        type: e.kind
-      }));
-    }
-    else if (err.name === 'MongoError' || err.name === 'MongoServerError') {
-      // Handle MongoDB specific errors
-      switch (err.code) {
-        case 11000: // Duplicate key
-          statusCode = 409;
-          message = 'Duplicate key error';
-          const key = Object.keys(err.keyPattern || {})[0];
-          if (key) {
-            details = { [key]: `Value '${err.keyValue[key]}' already exists` };
-          }
-          break;
-        case 'ECONNREFUSED':
-        case 'ETIMEDOUT':
-          statusCode = 503;
-          message = 'Database connection error';
-          break;
-        default:
-          message = 'Database error';
-      }
-    }
-    else if (err.name === 'JsonWebTokenError') {
-      statusCode = 401;
-      message = 'Invalid token';
-    }
-    else if (err.name === 'TokenExpiredError') {
-      statusCode = 401;
-      message = 'Token expired';
-    }
-    else if (err.name === 'UnauthorizedError') {
-      statusCode = 401;
-      message = 'Unauthorized';
-    }
-    else if (err.name === 'NotFoundError') {
-      statusCode = 404;
-      message = 'Resource not found';
-    }
-
-    // Prepare error response
-    const errorResponse = {
-      status: 'error',
-      statusCode,
-      message,
-      ...(code && { code }),
-      ...(Object.keys(details).length > 0 && { details })
-    };
-
-    // Include stack trace in development
-    if (process.env.NODE_ENV === 'development') {
-      errorResponse.stack = err.stack;
-    }
-
-    // Send error response
-    res.status(statusCode).json(errorResponse);
-  });
-
-  // 404 handler for all other routes
-  app.all('*', (req, res) => {
-    res.status(404).json({
-      status: 'error',
-      message: `Can't find ${req.originalUrl} on this server!`
-    });
+    console.error(err);
+    if (res.headersSent) return next(err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || 'Internal Server Error' });
   });
 
   return app;
 };
 
-// Create the Express app
 const app = createApp();
 
-// ... (rest of the code remains the same)
-// Connect to MongoDB
-const connectToMongoDB = async (options = {}) => {
-  const { retry = true, maxRetries = 3, retryDelay = 2000 } = options;
-  let retryCount = 0;
-
-  const attemptConnection = async () => {
-    try {
-      if (cachedDb && mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
-        try {
-          if (mongoose.connection.db) {
-            await mongoose.connection.db.admin().ping();
-            console.log('Using existing database connection');
-            return mongoose.connection;
-          }
-        } catch (pingError) {
-          console.log('Cached connection is dead, creating a new one');
-          cachedDb = null;
-        }
-      }
-
-      console.log('Connecting to MongoDB...');
-
-      // Log connection attempt (without credentials)
-      const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
-
-      console.log('MongoDB Connection Info:', {
-        usingConfig: 'Hardcoded in config',
-        uriStartsWith: config.db.uri.startsWith('mongodb+srv://') ? 'mongodb+srv://' : 'mongodb://',
-        safeUri: safeUri,
-        hasCredentials: config.db.uri.includes('@')
-      });
-
-      try {
-        // Create a new connection with the options from config
-        console.log('Attempting to connect to MongoDB...');
-        console.log('Using connection string:', config.db.uri);
-
-        const connectionOptions = {
-          ...config.db.options,
-          serverSelectionTimeoutMS: 10000, // 10 seconds timeout
-          socketTimeoutMS: 45000, // 45 seconds socket timeout
-          useNewUrlParser: true,
-          useUnifiedTopology: true
-        };
-
-        console.log('Connection options:', JSON.stringify(connectionOptions, null, 2));
-
-        await mongoose.connect(config.db.uri, connectionOptions);
-
-        console.log('MongoDB connected successfully');
-        console.log('MongoDB Connection Details:', {
-          host: mongoose.connection.host,
-          port: mongoose.connection.port,
-          name: mongoose.connection.name,
-          readyState: mongoose.connection.readyState,
-          models: Object.keys(mongoose.connection.models)
-        });
-
-        // Cache the connection
-        cachedDb = mongoose.connection;
-
-        return mongoose.connection;
-      } catch (connectError) {
-        console.error('MongoDB connection error details:', {
-          name: connectError.name,
-          message: connectError.message,
-          code: connectError.code,
-          codeName: connectError.codeName,
-          error: JSON.stringify(connectError, Object.getOwnPropertyNames(connectError))
-        });
-        throw connectError;
-      }
-
-    } catch (error) {
-      console.error(`MongoDB connection error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
-
-      // If we should retry and haven't exceeded max retries
-      if (retry && retryCount < maxRetries - 1) {
-        retryCount++;
-        console.log(`Retrying connection in ${retryDelay}ms... (${retryCount}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return attemptConnection();
-      }
-
-      throw error; // Re-throw the error if we're not retrying or have exceeded max retries
-    }
-  };
-
-  // Set up event listeners (only once)
-  if (!mongoose.connection._events || !mongoose.connection._events.connected) {
-    mongoose.connection.on('connected', () => {
-      console.log('MongoDB connected event');
-    });
-
-    mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected event');
-      cachedDb = null;
-
-      // Attempt to reconnect if we're not already in the process of reconnecting
-      if (process.env.NODE_ENV === 'production') {
-        console.log('Attempting to reconnect to MongoDB...');
-        setTimeout(() => {
-          connectToMongoDB().catch(err => {
-            console.error('Failed to reconnect to MongoDB:', err);
-          });
-        }, 5000); // Wait 5 seconds before attempting to reconnect
-      }
-    });
-  }
-
-  return attemptConnection();
-};
-
-// Function to start the server
-const startServer = async () => {
-  // Initialize MongoDB connection with retry logic
-  let dbConnection;
-  try {
-    dbConnection = await connectToMongoDB({
-      retry: true,
-      maxRetries: 5,
-      retryDelay: 3000
-    });
-  } catch (error) {
-    console.error('Failed to connect to MongoDB after multiple retries:', error);
-    // Don't exit in production, let the health check handle it
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
-  }
-  try {
-    console.log('Starting server...');
-
-    // In production, we'll let the app start even if MongoDB is not available initially
-    // The connection will be established on the first request
-    if (process.env.NODE_ENV === 'development') {
-      await connectToMongoDB();
-      console.log('MongoDB connection established');
-    } else {
-      console.log('Production mode: MongoDB connection will be established on first request');
-    }
-
-    const port = config.server.port;
-    const server = app.listen(port, () => {
-      console.log(`Server running in ${config.server.nodeEnv} mode on port ${port}`);
-      console.log(`API Documentation available at http://localhost:${port}/api-docs`);
-      console.log(`Health check: http://localhost:${port}/`);
-    });
-
-    // Handle server shutdown gracefully
-    const shutdown = async () => {
-      console.log('Shutting down server...');
-
-      // Close the server first to stop accepting new connections
-      server.close(async () => {
-        console.log('Server closed');
-
-        // Then close MongoDB connection if it exists
-        if (mongoose.connection && mongoose.connection.readyState === 1) {
-          try {
-            await mongoose.connection.close(false);
-            console.log('MongoDB connection closed');
-          } catch (err) {
-            console.error('Error closing MongoDB connection:', err);
-          }
-        }
-
-        // Exit the process
-        process.exit(0);
-      });
-
-      // Force exit after 10 seconds if the above takes too long
-      setTimeout(() => {
-        console.error('Could not close connections in time, forcefully shutting down');
-        process.exit(1);
-      }, 10000);
-    };
-
-    // Handle process termination
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      shutdown();
-    });
-
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    });
-
-    return server;
-
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-// Start the server if this file is run directly
-if (process.env.NODE_ENV !== 'test') {
-  startServer().catch(error => {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+/* ---------- MongoDB connection ---------- */
+const connectToMongoDB = async () => {
+  if (cachedDb && mongoose.connection.readyState === 1) return;
+  await mongoose.connect(config.db.uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
   });
-}
+  cachedDb = mongoose.connection;
+  console.log('MongoDB connected');
+};
 
-// For testing purposes
-export { connectToMongoDB, startServer };
+/* ---------- Server ---------- */
+const startServer = async () => {
+  try {
+    await connectToMongoDB();
+    const port = config.server.port;
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    console.error('Server start error:', err);
+    process.exit(1);
+  }
+};
+
+if (process.env.NODE_ENV !== 'test') startServer();
 
 export default app;
