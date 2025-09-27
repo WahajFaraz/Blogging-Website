@@ -102,26 +102,14 @@ const createApp = () => {
     optionsSuccessStatus: 200
   };
   
-  // Apply CORS with the options
-  app.use(cors(corsOptions));
-  
-  // Handle preflight for all routes
-  app.options('*', cors(corsOptions));
-  
-  // Add CORS headers to all responses
+  // Apply CORS middleware
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // Set CORS headers for allowed origins or direct access
-    if (!origin || originIsAllowed(origin)) {
-      // For direct access (no origin) or allowed origins
-      if (origin) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Credentials', 'true');
-      } else {
-        // For direct access, allow any origin but without credentials
-        res.header('Access-Control-Allow-Origin', '*');
-      }
+    // Check if origin is allowed
+    if (origin && originIsAllowed(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
       
       // Handle preflight requests
       if (req.method === 'OPTIONS') {
@@ -131,15 +119,31 @@ const createApp = () => {
         res.header('Access-Control-Expose-Headers', corsOptions.exposedHeaders.join(','));
         return res.status(200).end();
       }
-      
-      // Continue to the next middleware
-      return next();
+    } else if (req.method === 'OPTIONS') {
+      // Always respond to OPTIONS with 200, even for non-allowed origins
+      // This is necessary for preflight requests to work
+      return res.status(200).end();
+    } else if (origin) {
+      // Only block actual requests from non-allowed origins
+      const error = new Error(`Not allowed by CORS. Origin: ${origin}`);
+      error.status = 403;
+      return next(error);
     }
     
-    // If we get here, the origin is not allowed
-    const error = new Error(`Not allowed by CORS. Origin: ${origin || 'undefined'}`);
-    error.status = 403;
-    next(error);
+    next();
+  });
+  
+  // Apply CORS with the options (this is still needed for non-OPTIONS requests)
+  app.use(cors(corsOptions));
+
+  // Health check endpoint
+  app.get('/api/health', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development'
+    });
   });
 
   // Rate limiting
@@ -187,6 +191,11 @@ const createApp = () => {
 
   // Apply the middleware to all API routes
   app.use('/api', ensureDbConnection);
+
+  // Mount API routes
+  app.use('/api/v1/blogs', blogRoutes);
+  app.use('/api/v1/users', userRoutes);
+  app.use('/api/v1/media', mediaRoutes);
 
   // Health check endpoint with database connection check
   app.get('/', async (req, res) => {
