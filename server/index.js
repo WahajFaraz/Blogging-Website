@@ -40,30 +40,30 @@ const createApp = () => {
   }
 
   // Configure CORS with explicit headers and preflight caching
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://blogspace-gamma.vercel.app',
+    'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
+    'https://blogspace-git-develop-wahajfarazs-projects.vercel.app'
+  ];
+
+  // Add the configured client URL if it's not already in the list
+  if (config.server.clientUrl && !allowedOrigins.includes(config.server.clientUrl)) {
+    allowedOrigins.push(config.server.clientUrl);
+  }
+
+  // CORS configuration
   const corsOptions = {
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      // List of allowed origins
-      const allowedOrigins = [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'https://blogspace-gamma.vercel.app',
-        'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
-        'https://blogspace-git-develop-wahajfarazs-projects.vercel.app'
-      ];
-      
-      // Add the configured client URL if it's not already in the list
-      if (config.server.clientUrl && !allowedOrigins.includes(config.server.clientUrl)) {
-        allowedOrigins.push(config.server.clientUrl);
-      }
-      
       // Check if the origin is allowed
       if (allowedOrigins.includes(origin) || 
           config.server.nodeEnv === 'development' || 
           origin.endsWith('.vercel.app')) {
-        return callback(null, true);
+        return callback(null, origin); // Return the origin instead of true
       }
       
       callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
@@ -91,23 +91,31 @@ const createApp = () => {
     credentials: true,
     maxAge: 86400, // Cache preflight request for 24 hours
     preflightContinue: false,
-    optionsSuccessStatus: 200, // Changed from 204 to 200 for better Vercel compatibility
-    allowedOrigins: true // Allow credentials to be sent with the request
+    optionsSuccessStatus: 200 // Changed from 204 to 200 for better Vercel compatibility
   };
   
   // Apply CORS with the options
   app.use(cors(corsOptions));
-  app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
   
-  // Handle preflight for all routes - improved for Vercel
+  // Handle preflight for all routes
+  app.options('*', cors(corsOptions));
+  
+  // Add CORS headers to all responses
   app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin) || 
+        (origin && origin.endsWith('.vercel.app'))) {
+      res.header('Access-Control-Allow-Origin', origin);
       res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Max-Age', '86400');
+    }
+    
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Methods', corsOptions.methods.join(','));
+      res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
+      res.header('Access-Control-Max-Age', corsOptions.maxAge);
       return res.status(200).end();
     }
+    
     next();
   });
 
