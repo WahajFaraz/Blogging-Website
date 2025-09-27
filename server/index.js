@@ -7,6 +7,7 @@ import config from './config/config.js';
 import userRoutes from './routes/user.js';
 import blogRoutes from './routes/blog.js';
 import mediaRoutes from './routes/media.js';
+import authRoutes from './routes/auth.js';
 
 // Initialize Express app
 const app = express();
@@ -61,6 +62,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // API Routes
+app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/blogs', blogRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/media', mediaRoutes);

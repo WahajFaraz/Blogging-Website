@@ -21,7 +21,7 @@
     "now-build": "npm install --production=false && npm run build"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "2.4.3",
     "cloudinary": "^1.40.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -31,11 +31,11 @@
     "express-fileupload": "^1.5.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.1.0",
-    "express-validator": "^7.0.1",
+    "express-validator": "7.2.1",
     "express-xss-sanitizer": "^2.0.0",
     "helmet": "^7.1.0",
     "hpp": "^0.2.3",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "9.0.2",
     "mongoose": "^8.2.0",
     "morgan": "^1.10.0"
   },
