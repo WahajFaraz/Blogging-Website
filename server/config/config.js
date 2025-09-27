@@ -19,7 +19,7 @@ const config = {
 
   db: {
     // Always use environment variable in production for security
-    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/blogspace',
+    uri: process.env.MONGODB_URI || "mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     options: {
       // Timeout settings
       serverSelectionTimeoutMS: 10000,  // Timeout for server selection (10 seconds)
