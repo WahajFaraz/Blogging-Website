@@ -10,17 +10,11 @@
         "maxDuration": 30,
         "memory": 1024,
         "regions": ["iad1"],
-        "zeroConfig": true,
+        "zeroConfig": false,
         "nodeVersion": "18.x"
       }
     }
   ],
-  "build": {
-    "env": {
-      "NODE_ENV": "production",
-      "NODE_OPTIONS": "--experimental-specifier-resolution=node"
-    }
-  },
   "routes": [
     {
       "src": "/api/(?<path>.+)",
@@ -42,5 +36,11 @@
         "Referrer-Policy": "strict-origin-when-cross-origin"
       }
     }
-  ]
+  ],
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "NODE_OPTIONS": "--experimental-specifier-resolution=node"
+    }
+  }
 }
