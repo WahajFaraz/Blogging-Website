@@ -98,27 +98,69 @@ const createOptions = (method, data = null, token = null) => {
 const api = {
   // Auth endpoints
   login: async (credentials) => {
-    const response = await fetch(
-      createApiUrl('auth/login'),
-      createOptions('POST', credentials)
-    );
-    return handleResponse(response);
+    try {
+      const response = await fetch(
+        createApiUrl('users/login'),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Login failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   },
 
   register: async (userData) => {
-    const response = await fetch(
-      createApiUrl('auth/register'),
-      createOptions('POST', userData)
-    );
-    return handleResponse(response);
+    try {
+      const response = await fetch(createApiUrl('users/signup'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Registration failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   },
   
   logout: async (token) => {
-    const response = await fetch(
-      createApiUrl('auth/logout'),
-      createOptions('POST', null, token)
-    );
-    return handleResponse(response);
+    try {
+      const response = await fetch(
+        createApiUrl('users/logout'),
+        createOptions('POST', null, token)
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Logout failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
   },
 
   // Blog endpoints
