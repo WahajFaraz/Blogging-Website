@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { createApiUrl } from "../lib/urlUtils";
+import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -36,21 +36,12 @@ const MyPosts = () => {
   const fetchMyPosts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(createApiUrl('blogs/my-posts'), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPosts(data.blogs || []);
-      } else {
-        setError('Failed to fetch posts');
-      }
+      const data = await api.getBlogs({ myPosts: true }, token);
+      setPosts(data.blogs || []);
+      setError(null);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      setError('Network error');
+      setError(error.message || 'Failed to fetch posts');
     } finally {
       setLoading(false);
     }
@@ -61,21 +52,11 @@ const MyPosts = () => {
 
     try {
       setDeleting(postId);
-      const response = await fetch(createApiUrl(`blogs/${postId}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        setPosts(prev => prev.filter(post => post._id !== postId));
-      } else {
-        alert('Failed to delete post');
-      }
+      await api.deleteBlog(postId, token);
+      setPosts(prev => prev.filter(post => post._id !== postId));
     } catch (error) {
       console.error('Error deleting post:', error);
-      alert('Network error');
+      setError(error.message || 'Failed to delete post');
     } finally {
       setDeleting(null);
     }

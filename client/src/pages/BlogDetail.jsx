@@ -39,63 +39,38 @@ const BlogDetail = () => {
   const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
 
   useEffect(() => {
-    fetchBlog();
-  }, [id]);
 
   const fetchBlog = async () => {
     try {
       setLoading(true);
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(createApiUrl(`blogs/${id}`), {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error('Blog not found');
-      }
-
-      const data = await response.json();
+      const data = await api.getBlog(id, token);
       setBlog(data);
-    } catch (error) {
-      console.error('Error fetching blog:', error);
-      setError(error.message);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching blog post:', err);
+      setError(err.message || 'Failed to load blog post');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLike = async () => {
-    if (!isAuthenticated) {
-      navigate('/login');
+    if (!token) {
+      navigate('/login', { state: { from: location.pathname } });
       return;
     }
 
     try {
       setLiking(true);
-      const response = await fetch(createApiUrl(`blogs/${id}/like`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBlog(prev => ({
-          ...prev,
-          likes: data.isLiked 
-            ? [...prev.likes, user._id]
-            : prev.likes.filter(id => id !== user._id),
-          isLiked: data.isLiked
-        }));
-      }
-    } catch (error) {
-      console.error('Error toggling like:', error);
+      const data = await api.likeBlog(id, token);
+      setBlog(prev => ({
+        ...prev,
+        likes: data.likes,
+        isLiked: data.isLiked
+      }));
+    } catch (err) {
+      console.error('Error liking post:', err);
+      setError(err.message || 'Failed to like post');
     } finally {
       setLiking(false);
     }
@@ -105,7 +80,7 @@ const BlogDetail = () => {
     e.preventDefault();
     
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate('/login', { state: { from: location.pathname } });
       return;
     }
 
@@ -113,53 +88,36 @@ const BlogDetail = () => {
 
     try {
       setSubmittingComment(true);
-      const response = await fetch(createApiUrl(`blogs/${id}/comments`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ content: commentText.trim() })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBlog(prev => ({
-          ...prev,
-          comments: [...prev.comments, data.comment]
-        }));
-        setCommentText("");
-      }
-    } catch (error) {
-      console.error('Error adding comment:', error);
+      const data = await api.addComment(id, commentText, token);
+      
+      setBlog(prev => ({
+        ...prev,
+        comments: [data.comment, ...prev.comments]
+      }));
+      setCommentText('');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      setError(err.message || 'Failed to add comment');
     } finally {
       setSubmittingComment(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this blog post?')) return;
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
       setDeleting(true);
-      const response = await fetch(createApiUrl(`blogs/${id}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Error deleting blog:', error);
+      await api.deleteBlog(id, token);
+      navigate('/');
+      toast.success('Post deleted successfully');
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setError(err.message || 'Failed to delete post');
     } finally {
       setDeleting(false);
     }
   };
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',

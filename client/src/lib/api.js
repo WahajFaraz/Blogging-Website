@@ -82,7 +82,7 @@ const api = {
   // Auth endpoints
   login: async (credentials) => {
     const response = await fetch(
-      createApiUrl('users/login'),
+      createApiUrl('auth/login'),
       createOptions('POST', credentials)
     );
     return handleResponse(response);
@@ -90,8 +90,16 @@ const api = {
 
   register: async (userData) => {
     const response = await fetch(
-      createApiUrl('users/register'),
+      createApiUrl('auth/register'),
       createOptions('POST', userData)
+    );
+    return handleResponse(response);
+  },
+  
+  logout: async (token) => {
+    const response = await fetch(
+      createApiUrl('auth/logout'),
+      createOptions('POST', null, token)
     );
     return handleResponse(response);
   },
@@ -179,9 +187,9 @@ const api = {
     return handleResponse(response);
   },
 
-  // Media upload
-  uploadMedia: async (formData, token) => {
-    const response = await fetch(createApiUrl('media/upload'), {
+  // Media uploads
+  uploadImage: async (formData, token) => {
+    const response = await fetch(createApiUrl('media/upload-image'), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -190,6 +198,82 @@ const api = {
       body: formData,
       mode: 'cors'
     });
+    return handleResponse(response);
+  },
+  
+  uploadAvatar: async (formData, token) => {
+    const response = await fetch(createApiUrl('media/upload-avatar'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include',
+      body: formData,
+      mode: 'cors'
+    });
+    return handleResponse(response);
+  },
+  
+  uploadVideo: async (formData, token) => {
+    const response = await fetch(createApiUrl('media/upload-video'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include',
+      body: formData,
+      mode: 'cors'
+    });
+    return handleResponse(response);
+  },
+  
+  deleteMedia: async (publicId, token) => {
+    const response = await fetch(
+      createApiUrl(`media/${publicId}`),
+      createOptions('DELETE', null, token)
+    );
+    return handleResponse(response);
+  },
+  
+  // User interactions
+  followUser: async (userId, token) => {
+    const response = await fetch(
+      createApiUrl(`users/follow/${userId}`),
+      createOptions('POST', null, token)
+    );
+    return handleResponse(response);
+  },
+  
+  unfollowUser: async (userId, token) => {
+    const response = await fetch(
+      createApiUrl(`users/unfollow/${userId}`),
+      createOptions('POST', null, token)
+    );
+    return handleResponse(response);
+  },
+  
+  getUserByUsername: async (username) => {
+    const response = await fetch(
+      createApiUrl(`users/${username}`),
+      createOptions('GET')
+    );
+    return handleResponse(response);
+  },
+  
+  // Blog comments
+  addComment: async (blogId, content, token) => {
+    const response = await fetch(
+      createApiUrl(`blogs/${blogId}/comments`),
+      createOptions('POST', { content }, token)
+    );
+    return handleResponse(response);
+  },
+  
+  deleteComment: async (blogId, commentId, token) => {
+    const response = await fetch(
+      createApiUrl(`blogs/${blogId}/comments/${commentId}`),
+      createOptions('DELETE', null, token)
+    );
     return handleResponse(response);
   }
 };
