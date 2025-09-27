@@ -1,29 +1,13 @@
 const env = import.meta.env;
 
-// Helper to get the correct base URL
-const getBaseUrl = () => {
-  // In production, use the production URL
-  if (env.MODE === 'production') {
-    return 'https://blogging-website-lyart.vercel.app';
-  }
-  // In development, use the local server or the one specified in .env
-  return env.VITE_API_BASE_URL || 'http://localhost:5001';
-};
-
 export const config = {
   api: {
-    baseUrl: getBaseUrl().replace(/\/+$/, ''),
+    baseUrl: 'https://blogging-website-lyart.vercel.app',
     version: 'v1',
     timeout: 30000,
     defaultHeaders: {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
-    },
-    // Add CORS specific settings
-    cors: {
-      credentials: 'include',
-      mode: 'cors',
-      cache: 'default'
     }
   },
   

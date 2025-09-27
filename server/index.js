@@ -36,19 +36,53 @@ const createApp = () => {
 
   /** ---------------------- CORS FIX ------------------------- */
   const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173',
     'https://blogspace-gamma.vercel.app',
     'https://blogging-website-lyart.vercel.app',
-    'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
-    'https://blogspace-git-develop-wahajfarazs-projects.vercel.app',
-    'https://blogging-website-2jbqc17qm-wahaj-farazs-projects.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173'
   ];
 
-  const originIsAllowed = (origin) =>
-    !origin ||
-    allowedOrigins.includes(origin) ||
-    origin.endsWith('.vercel.app');
+  // Log all requests
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    console.log('Origin:', req.headers.origin);
+    console.log('Headers:', req.headers);
+    next();
+  });
+
+  // CORS configuration
+  const corsOptions = {
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        return callback(null, origin);
+      }
+      
+      const msg = `The CORS policy for this site does not allow access from ${origin}`;
+      console.error('CORS Error:', msg);
+      return callback(new Error(msg), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'Authorization'],
+    maxAge: 600 // 10 minutes
+  };
+
+  // Apply CORS to all routes
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions)); // Enable preflight for all routes
+
+  // Test endpoint
+  app.get('/api/test-cors', (req, res) => {
+    res.json({ 
+      status: 'success',
+      message: 'CORS is working!',
+      timestamp: new Date().toISOString()
+    });
+  });
 
   // Function to handle CORS origin with credentials
   const handleCorsOrigin = (origin, callback) => {
@@ -158,11 +192,29 @@ const createApp = () => {
 
   // Error handler
   app.use((err, req, res, next) => {
-    console.error(err);
-    if (res.headersSent) return next(err);
-    res
-      .status(err.status || 500)
-      .json({ error: err.message || 'Internal Server Error' });
+    console.error('Error:', {
+      message: err.message,
+      status: err.status || 500,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      name: err.name,
+      code: err.code
+    });
+
+    // Handle CORS errors
+    if (err.name === 'CorsError') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not allowed by CORS',
+        details: err.message
+      });
+    }
+
+    // Handle other errors
+    res.status(err.status || 500).json({
+      status: 'error',
+      message: err.message || 'Internal Server Error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
   });
 
   return app;
