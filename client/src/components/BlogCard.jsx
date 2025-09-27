@@ -13,7 +13,7 @@ const BlogCard = ({ blog, index }) => {
   const { user, token, isAuthenticated } = useAuth();
   const [likedState, setLikedState] = useState({
     isLiked: blog.isLiked || false,
-    likesCount: blog.likes.length,
+    likesCount: (blog.likes && blog.likes.length) || 0,
   });
 
   const formatDate = (dateString) => {
@@ -160,10 +160,10 @@ const BlogCard = ({ blog, index }) => {
                 <p className="text-sm font-medium text-foreground hover:text-blog-primary transition-colors">
                   {blog.author.fullName}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {formatDate(blog.publishedAt)}
-                </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Heart className="h-4 w-4 mr-1" />
+                      <span>{(blog.likes && blog.likes.length) || 0}</span>
+                    </div>
               </div>
             </Link>
           </div>
@@ -171,11 +171,11 @@ const BlogCard = ({ blog, index }) => {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {blog.readTime} min
+              {blog.readTime || 0} min
             </span>
             <span className="flex items-center gap-1">
               <Eye className="h-3 w-3" />
-              {blog.views}
+              {blog.views || 0}
             </span>
           </div>
         </div>
