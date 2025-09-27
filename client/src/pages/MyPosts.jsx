@@ -293,17 +293,22 @@ const MyPosts = () => {
                       {/* Post Image */}
                       <div className="relative h-48 overflow-hidden">
                         <img
-                          src={post.coverImage?.url || 'https://images.unsplash.com/photo-1542435503-956c469947f6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80'}
+                          src={post.media?.url || post.featuredImage?.url || 'https://images.unsplash.com/photo-1542435503-956c469947f6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80'}
                           alt={post.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2">
                             <Badge variant="secondary" className="bg-white/10 backdrop-blur-sm text-white border-0">
                               {post.category || 'Uncategorized'}
                             </Badge>
+                            {post.tags?.map((tag, idx) => (
+                              <Badge key={idx} variant="outline" className="bg-white/10 backdrop-blur-sm text-white border-white/20">
+                                {tag}
+                              </Badge>
+                            ))}
                             {post.status === 'draft' && (
-                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                              <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
                                 Draft
                               </Badge>
                             )}
@@ -313,53 +318,77 @@ const MyPosts = () => {
                       
                       {/* Post Content */}
                       <div className="p-5 flex-1 flex flex-col">
-                        <div className="flex items-center text-sm text-muted-foreground mb-2">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(post.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                          <span className="mx-2">•</span>
-                          <Clock className="h-4 w-4 mr-1" />
-                          {Math.ceil((post.content?.length || 0) / 1000 * 2)} min read
+                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1 flex-shrink-0" />
+                            <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-1 flex-shrink-0" />
+                            <span>{post.readTime || Math.ceil((post.content?.length || 0) / 1000 * 2)} min read</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Eye className="h-4 w-4 mr-1 flex-shrink-0" />
+                            <span>{post.views || 0} views</span>
+                          </div>
                         </div>
                         
-                        <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2">
-                          <Link 
-                            to={`/blog/${post._id}`} 
-                            className="hover:text-blog-primary transition-colors after:absolute after:inset-0"
-                          >
-                            {post.title}
-                          </Link>
-                          <div className="flex gap-2 mt-2">
-                            <Badge variant={post.status === 'published' ? 'default' : 'secondary'} className="capitalize">
+                        <div className="mb-2">
+                          <h3 className="text-xl font-bold text-foreground line-clamp-2">
+                            <Link 
+                              to={`/blog/${post._id}`} 
+                              className="hover:text-blog-primary transition-colors after:absolute after:inset-0"
+                            >
+                              {post.title}
+                            </Link>
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge 
+                              variant={post.status === 'published' ? 'default' : 'secondary'} 
+                              className="capitalize text-xs"
+                            >
                               {post.status}
                             </Badge>
                             {post.featured && (
-                              <Badge variant="default" className="bg-blog-primary">
+                              <Badge variant="default" className="bg-blog-primary text-xs">
                                 Featured
                               </Badge>
                             )}
+                            {post.category && (
+                              <Badge variant="outline" className="text-xs">
+                                {post.category}
+                              </Badge>
+                            )}
                           </div>
-                        </h3>
+                        </div>
                         
-                        <p className="text-muted-foreground line-clamp-3 my-4 flex-1">
-                          {post.excerpt || (post.content ? post.content.substring(0, 150) + '...' : '')}
-                        </p>
+                        <div className="my-4 flex-1">
+                          <p className="text-muted-foreground line-clamp-3">
+                            {post.excerpt || (post.content ? 
+                              post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : 
+                              'No content available')
+                            }
+                          </p>
+                        </div>
                         
                         {/* Post Stats */}
                         <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
                           <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
-                              <Heart className="h-4 w-4 mr-1" />
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors" title="Likes">
+                              <Heart 
+                                className={`h-4 w-4 mr-1 ${post.isLiked ? 'fill-red-500 text-red-500' : ''}`} 
+                              />
                               <span>{post.likes?.length || 0}</span>
                             </div>
-                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors" title="Comments">
                               <MessageCircle className="h-4 w-4 mr-1" />
                               <span>{post.comments?.length || 0}</span>
                             </div>
-                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors">
+                            <div className="flex items-center text-muted-foreground group-hover:text-foreground transition-colors" title="Views">
                               <Eye className="h-4 w-4 mr-1" />
                               <span>{post.views || 0}</span>
                             </div>
