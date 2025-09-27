@@ -152,8 +152,22 @@ const createApp = () => {
   app.get('/', async (req, res) => {
     // Safely get connection state
     let dbState = 'unknown';
+    let mongoState = 'unknown';
+    let mongoConnection = null;
+    
     try {
-      dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+      // Get MongoDB connection state safely
+      if (mongoose.connection) {
+        mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+        mongoConnection = {
+          readyState: mongoose.connection.readyState,
+          host: mongoose.connection.host,
+          port: mongoose.connection.port,
+          name: mongoose.connection.name,
+          models: mongoose.connection.models ? Object.keys(mongoose.connection.models) : []
+        };
+      }
+      dbState = mongoState;
     } catch (e) {
       console.warn('Could not determine MongoDB connection state:', e.message);
       dbState = 'connection error';
@@ -167,11 +181,32 @@ const createApp = () => {
     const envInfo = {
       NODE_ENV: process.env.NODE_ENV,
       MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
+      MONGODB_URI_STARTS_CORRECTLY: config.db.uri ? 
+        (config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')) : 
+        'no uri',
       USING_CONFIG_URI: !!config.db.uri,
       CONFIG_DB_URI: config.db.uri ? '***configured***' : 'not configured',
       VERIFIED_ENV_VARS: Object.keys(process.env).filter(k => k.includes('MONGODB') || k.includes('MONGO') || k.includes('DB'))
     };
+    
+    // Log additional debug info
+    const debugInfo = {
+      configDbUri: config.db.uri ? '***configured***' : 'not configured',
+      mongooseConnection: {
+        readyState: mongoose.connection ? mongoose.connection.readyState : 'no connection',
+        host: mongoose.connection ? mongoose.connection.host : 'no connection',
+        port: mongoose.connection ? mongoose.connection.port : 'no connection',
+        name: mongoose.connection ? mongoose.connection.name : 'no connection',
+        models: mongoose.connection && mongoose.connection.models ? 
+          Object.keys(mongoose.connection.models) : 'no models'
+      },
+      nodeVersion: process.version,
+      platform: process.platform,
+      memoryUsage: process.memoryUsage()
+    };
+    
     console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
+    console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
 
     // Try to connect to database if not connected
     try {
@@ -400,6 +435,16 @@ const app = createApp();
 const connectToMongoDB = async (options = {}) => {
   const { retry = true, maxRetries = 3, retryDelay = 2000 } = options;
   let retryCount = 0;
+  
+  // Validate MongoDB URI before attempting to connect
+  if (!config.db.uri) {
+    throw new Error('MongoDB URI is not configured');
+  }
+  
+  // Ensure the URI is properly formatted
+  if (!config.db.uri.startsWith('mongodb://') && !config.db.uri.startsWith('mongodb+srv://')) {
+    throw new Error(`Invalid MongoDB URI format: ${config.db.uri}. Must start with mongodb:// or mongodb+srv://`);
+  }
 
   const attemptConnection = async () => {
     try {
@@ -429,12 +474,9 @@ const connectToMongoDB = async (options = {}) => {
         NODE_ENV: process.env.NODE_ENV,
         MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
         USING_CONFIG_URI: !!config.db.uri,
-        SAFE_URI: safeUri
+        SAFE_URI: safeUri,
+        URI_STARTS_CORRECTLY: config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')
       });
-
-      if (!config.db.uri) {
-        throw new Error('MongoDB URI is not configured. Please check your environment variables.');
-      }
 
       try {
         // Create a new connection with the options from config

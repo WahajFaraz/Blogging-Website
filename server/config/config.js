@@ -2,15 +2,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Get the directory name in ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const config = {
-  // Server Configuration
   server: {
     port: process.env.PORT || 5001,
     nodeEnv: process.env.NODE_ENV || 'production',
@@ -19,27 +16,28 @@ const config = {
 
   db: {
     // Always use environment variable in production for security
-    uri: process.env.MONGODB_URI || "mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    uri: (() => {
+      const uri = process.env.MONGODB_URI || "mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+      // Ensure the URI starts with the correct scheme
+      if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+        console.error('Invalid MongoDB URI format. Must start with mongodb:// or mongodb+srv://');
+        return ''; // This will cause a connection error with a clear message
+      }
+      return uri;
+    })(),
     options: {
-      // Timeout settings
-      serverSelectionTimeoutMS: 10000,  // Timeout for server selection (10 seconds)
-      socketTimeoutMS: 45000,           // Socket timeout (45 seconds)
-      connectTimeoutMS: 10000,          // Connection timeout (10 seconds)
-      
-      // Connection pool settings
-      maxPoolSize: 10,                  // Maximum number of connections in the pool
-      minPoolSize: 1,                   // Minimum number of connections in the pool
-      maxIdleTimeMS: 30000,             // Close idle connections after 30s
-      
-      // Retry settings
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      maxIdleTimeMS: 30000,
       retryWrites: true,
       retryReads: true,
-      
-      // MongoDB driver settings
+
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      
-      // Auto-indexing (disabled in production)
+
       autoIndex: process.env.NODE_ENV !== 'production',
     },
   },
