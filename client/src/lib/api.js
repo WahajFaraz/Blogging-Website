@@ -64,31 +64,35 @@ const handleResponse = async (response) => {
 
   return data;
 };
-
 // Helper function to create request options
 const createOptions = (method, data = null, token = null) => {
   const options = {
     method,
     headers: {
-      'Content-Type': 'application/json',
       ...config.api.defaultHeaders,
+      'Accept': 'application/json',
     },
-    credentials: 'include',
-    mode: 'cors',
-    cache: 'no-cache',
-    redirect: 'follow',
-    referrerPolicy: 'no-referrer',
-    timeout: config.api.timeout
+    credentials: 'include', // Include cookies in requests
+    mode: 'cors', // Enable CORS
   };
-  
+
+  // Add auth token if provided
   if (token) {
-    options.headers['Authorization'] = `Bearer ${token}`;
+    options.headers.Authorization = `Bearer ${token}`;
   }
-  
+
+  // Add request body if provided
   if (data) {
-    options.body = JSON.stringify(data);
+    if (data instanceof FormData) {
+      // Don't set Content-Type for FormData, let the browser set it with the correct boundary
+      delete options.headers['Content-Type'];
+      options.body = data;
+    } else {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(data);
+    }
   }
-  
+
   return options;
 };
 

@@ -51,12 +51,16 @@ const createApp = () => {
     origin.endsWith('.vercel.app');
 
   const corsOptions = {
-    origin(origin, callback) {
-      if (originIsAllowed(origin)) return callback(null, origin || true);
-      return callback(
-        new Error(`CORS blocked for origin: ${origin}`),
-        false
-      );
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Check if the origin is allowed
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -66,9 +70,12 @@ const createApp = () => {
       'X-Requested-With',
       'Accept',
       'Origin',
+      'Access-Control-Allow-Credentials'
     ],
-    exposedHeaders: ['Content-Length'],
+    exposedHeaders: ['Content-Length', 'Authorization'],
     optionsSuccessStatus: 200,
+    maxAge: 86400, // 24 hours
+    preflightContinue: false
   };
 
   // handle OPTIONS first
@@ -77,10 +84,35 @@ const createApp = () => {
 
   /** --------------------------------------------------------- */
 
+  // Root endpoint
+  app.get('/', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.status(200).json({
+      status: 'ok',
+      message: 'BlogSpace API is running',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      documentation: 'https://github.com/yourusername/your-repo#readme',
+      endpoints: {
+        blogs: '/api/v1/blogs',
+        users: '/api/v1/users',
+        media: '/api/v1/media',
+        health: '/api/health'
+      }
+    });
+  });
+
   // Health check
-  app.get('/api/health', (req, res) =>
-    res.status(200).json({ status: 'ok', time: new Date() })
-  );
+  app.get('/api/health', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.status(200).json({ 
+      status: 'ok', 
+      time: new Date().toISOString(),
+      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
+  });
 
   // Rate limiting
   const limiter = rateLimit({
