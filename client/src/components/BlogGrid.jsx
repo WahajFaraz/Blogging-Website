@@ -43,15 +43,18 @@ const BlogGrid = ({ blogs: initialBlogs, searchFilters = { query: '', category: 
       const queryString = params.toString();
       console.log('Fetching blogs with params:', queryString);
       
-      const response = await api.getBlogs(queryString ? `?${queryString}` : '');
+      const blogsData = await api.getBlogs(queryString ? `?${queryString}` : '');
       
       if (!isMounted.current) return;
       
-      // The response is already parsed by our API utility
-      if (response.success && response.data) {
-        setBlogs(response.data.blogs || []);
+      // The response is already an array of blogs
+      if (Array.isArray(blogsData)) {
+        setBlogs(blogsData);
+      } else if (blogsData && blogsData.data && Array.isArray(blogsData.data.blogs)) {
+        // Fallback for old response format
+        setBlogs(blogsData.data.blogs);
       } else {
-        throw new Error(response.message || 'Failed to fetch blogs');
+        throw new Error('Failed to fetch blogs: Invalid response format');
       }
     } catch (error) {
       console.error('Error fetching blogs:', error);
