@@ -56,6 +56,7 @@ const createApp = () => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
+      // Check if the origin is in the allowed list or is a vercel.app subdomain
       if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         return callback(null, origin);
       }
@@ -71,17 +72,35 @@ const createApp = () => {
       'Authorization',
       'X-Requested-With',
       'Accept',
-      'Origin'
+      'Origin',
+      'X-CSRF-Token'
     ],
-    exposedHeaders: ['Content-Length', 'Authorization'],
+    exposedHeaders: [
+      'Content-Length',
+      'Authorization',
+      'Set-Cookie',
+      'X-CSRF-Token'
+    ],
     maxAge: 86400, // 24 hours
     optionsSuccessStatus: 200,
     preflightContinue: false
   };
 
-  // Apply CORS to all routes
+  // Apply CORS middleware
   app.use(cors(corsOptions));
-  app.options('*', cors(corsOptions)); // Enable preflight for all routes
+  
+  // Handle preflight requests
+  app.options('*', cors(corsOptions));
+  
+  // Add CORS headers to all responses
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
+    next();
+  });
 
   // Test endpoint
   app.get('/api/test-cors', (req, res) => {
