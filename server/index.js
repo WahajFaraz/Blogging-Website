@@ -16,6 +16,9 @@ import userRoutes from './routes/user.js';
 import blogRoutes from './routes/blog.js';
 import mediaRoutes from './routes/media.js';
 
+// Global variable to cache the connection across function invocations
+let cachedDb = null;
+
 // ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -223,42 +226,97 @@ const createApp = () => {
   return app;
 };
 
+// Create the Express app
+const app = createApp();
+
 // Connect to MongoDB with retry logic
 const connectWithRetry = async (maxRetries = 3, attempt = 1) => {
   try {
-    console.log(`Attempting to connect to MongoDB (${attempt}/${maxRetries})...`);
-    await mongoose.connect(config.db.uri, config.db.options);
-    console.log('MongoDB connected successfully');
-    return true;
-  } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    
-    if (attempt >= maxRetries) {
-      console.error('Max retries reached. Could not connect to MongoDB.');
-      return false;
+    // If we have a cached connection, check if it's still alive
+    if (cachedDb) {
+      try {
+        // Check if the connection is still alive
+        await mongoose.connection.db.admin().ping();
+        console.log('Using existing database connection');
+        return cachedDb;
+      } catch (error) {
+        console.log('Cached connection is dead, creating a new one');
+        cachedDb = null;
+      }
     }
+
+    // Create a new connection
+    const options = {
+      ...config.db.options,
+      serverSelectionTimeoutMS: 5000, // Reduce timeout for faster failure in serverless
+      heartbeatFrequencyMS: 10000, // Send pings more frequently
+    };
+
+    await mongoose.connect(config.db.uri, options);
+    console.log('MongoDB connected successfully');
     
-    const delay = 5000;
-    console.log(`Retrying connection in ${delay/1000} seconds...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return connectWithRetry(maxRetries, attempt + 1);
+    // Cache the connection
+    cachedDb = mongoose.connection;
+    
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+      cachedDb = null; // Clear cache on error
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+      cachedDb = null; // Clear cache on disconnect
+    });
+    
+    return mongoose.connection;
+  } catch (error) {
+    console.error(`MongoDB connection attempt ${attempt} failed:`, error.message);
+    
+    if (attempt < maxRetries) {
+      console.log(`Retrying connection... (${attempt + 1}/${maxRetries})`);
+      // Wait for 2 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return connectWithRetry(maxRetries, attempt + 1);
+    } else {
+      console.error('Max retries reached. Could not connect to MongoDB');
+      throw error; // Don't exit process in serverless
+    }
   }
 };
 
-const app = createApp();
-
 // For local development
 if (process.env.NODE_ENV !== 'production') {
-  const PORT = config.server.port;
-  
   const startServer = async () => {
     try {
       await connectWithRetry();
-      app.listen(PORT, () => {
-        console.log(`Server running in ${config.server.nodeEnv} mode on port ${PORT}`);
+      
+      const port = config.server.port;
+      const server = app.listen(port, () => {
+        console.log(`Server running in ${config.server.nodeEnv} mode on port ${port}`);
+        console.log(`API Documentation available at http://localhost:${port}/api-docs`);
       });
+      
+      // Handle server shutdown gracefully
+      const shutdown = async () => {
+        console.log('Shutting down server...');
+        server.close(async () => {
+          console.log('Server closed');
+          if (mongoose.connection) {
+            await mongoose.connection.close(false);
+            console.log('MongoDB connection closed');
+          }
+          process.exit(0);
+        });
+      };
+      
+      // Handle process termination
+      process.on('SIGTERM', shutdown);
+      process.on('SIGINT', shutdown);
+      
+      return server;
     } catch (error) {
-      console.error('Failed to connect to MongoDB:', error);
+      console.error('Failed to start server:', error);
       process.exit(1);
     }
   };
