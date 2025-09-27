@@ -29,7 +29,6 @@ const createApp = () => {
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false, // Disable CSP for Vercel compatibility
   }));
 
   // Logging
@@ -45,7 +44,9 @@ const createApp = () => {
     'http://localhost:5173',
     'https://blogspace-gamma.vercel.app',
     'https://blogspace-git-main-wahajfarazs-projects.vercel.app',
-    'https://blogspace-git-develop-wahajfarazs-projects.vercel.app'
+    'https://blogspace-git-develop-wahajfarazs-projects.vercel.app',
+    'https://blogging-website-lyart.vercel.app',
+    'https://blogging-website-2jbqc17qm-wahaj-farazs-projects.vercel.app'
   ];
 
   // Add the configured client URL if it's not already in the list
@@ -53,20 +54,22 @@ const createApp = () => {
     allowedOrigins.push(config.server.clientUrl);
   }
 
+  // Function to validate origin
+  const originIsAllowed = (origin) => {
+    if (!origin) return false;
+    return allowedOrigins.includes(origin) || 
+           config.server.nodeEnv === 'development' || 
+           origin.endsWith('.vercel.app');
+  };
+
   // CORS configuration
   const corsOptions = {
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Check if the origin is allowed
-      if (allowedOrigins.includes(origin) || 
-          config.server.nodeEnv === 'development' || 
-          origin.endsWith('.vercel.app')) {
-        return callback(null, origin); // Return the origin instead of true
+      if (originIsAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
       }
-      
-      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
@@ -91,7 +94,7 @@ const createApp = () => {
     credentials: true,
     maxAge: 86400, // Cache preflight request for 24 hours
     preflightContinue: false,
-    optionsSuccessStatus: 200 // Changed from 204 to 200 for better Vercel compatibility
+    optionsSuccessStatus: 200
   };
   
   // Apply CORS with the options
@@ -103,17 +106,20 @@ const createApp = () => {
   // Add CORS headers to all responses
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin) || 
-        (origin && origin.endsWith('.vercel.app'))) {
+    
+    // Set CORS headers for allowed origins
+    if (originIsAllowed(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
       res.header('Access-Control-Allow-Credentials', 'true');
-    }
-    
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Methods', corsOptions.methods.join(','));
-      res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
-      res.header('Access-Control-Max-Age', corsOptions.maxAge);
-      return res.status(200).end();
+      
+      // Handle preflight requests
+      if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Methods', corsOptions.methods.join(','));
+        res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
+        res.header('Access-Control-Max-Age', corsOptions.maxAge);
+        res.header('Access-Control-Expose-Headers', corsOptions.exposedHeaders.join(','));
+        return res.status(200).end();
+      }
     }
     
     next();
@@ -172,7 +178,7 @@ const createApp = () => {
     let mongoState = 'unknown';
     let mongoConnection = null;
     let connectionError = null;
-    
+
     try {
       // Log the MongoDB URI being used (without credentials)
       const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
@@ -182,7 +188,7 @@ const createApp = () => {
         hasCredentials: config.db.uri.includes('@'),
         nodeEnv: process.env.NODE_ENV
       });
-      
+
       // Get MongoDB connection state safely
       if (mongoose.connection) {
         mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
@@ -195,7 +201,7 @@ const createApp = () => {
         };
       }
       dbState = mongoState;
-      
+
       // If not connected, try to connect
       if (mongoose.connection.readyState !== 1) {
         console.log('Attempting to establish database connection...');
@@ -212,7 +218,7 @@ const createApp = () => {
         stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
       };
     }
-    
+
     let pingResult = 'not attempted';
     let pingError = null;
 
@@ -220,14 +226,14 @@ const createApp = () => {
     const envInfo = {
       NODE_ENV: process.env.NODE_ENV,
       MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
-      MONGODB_URI_STARTS_CORRECTLY: config.db.uri ? 
-        (config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')) : 
+      MONGODB_URI_STARTS_CORRECTLY: config.db.uri ?
+        (config.db.uri.startsWith('mongodb://') || config.db.uri.startsWith('mongodb+srv://')) :
         'no uri',
       USING_CONFIG_URI: !!config.db.uri,
       CONFIG_DB_URI: config.db.uri ? '***configured***' : 'not configured',
       VERIFIED_ENV_VARS: Object.keys(process.env).filter(k => k.includes('MONGODB') || k.includes('MONGO') || k.includes('DB'))
     };
-    
+
     // Log additional debug info
     const debugInfo = {
       configDbUri: config.db.uri ? '***configured***' : 'not configured',
@@ -236,14 +242,14 @@ const createApp = () => {
         host: mongoose.connection ? mongoose.connection.host : 'no connection',
         port: mongoose.connection ? mongoose.connection.port : 'no connection',
         name: mongoose.connection ? mongoose.connection.name : 'no connection',
-        models: mongoose.connection && mongoose.connection.models ? 
+        models: mongoose.connection && mongoose.connection.models ?
           Object.keys(mongoose.connection.models) : 'no models'
       },
       nodeVersion: process.version,
       platform: process.platform,
       memoryUsage: process.memoryUsage()
     };
-    
+
     console.log('Environment Info:', JSON.stringify(envInfo, null, 2));
     console.log('Debug Info:', JSON.stringify(debugInfo, null, 2));
 
@@ -338,7 +344,7 @@ const createApp = () => {
       }
     });
     res.set('Surrogate-Control', 'no-store');
-    
+
     // Return status
     res.status(200).json(status);
   });
@@ -360,7 +366,7 @@ const createApp = () => {
 
   // 404 handler for API routes
   app.use('/api/v1/*', (req, res) => {
-    res.status(404).json({ 
+    res.status(404).json({
       status: 'error',
       message: 'API endpoint not found'
     });
@@ -378,18 +384,18 @@ const createApp = () => {
       method: req.method,
       timestamp: new Date().toISOString()
     });
-    
+
     // If headers already sent, delegate to the default Express error handler
     if (res.headersSent) {
       return next(err);
     }
-    
+
     // Default error status and message
     let statusCode = err.statusCode || 500;
     let message = err.message || 'Internal Server Error';
     let code = err.code;
     let details = {};
-    
+
     // Handle specific error types
     if (err.name === 'ValidationError') {
       statusCode = 400;
@@ -399,10 +405,10 @@ const createApp = () => {
         message: e.message,
         type: e.kind
       }));
-    } 
+    }
     else if (err.name === 'MongoError' || err.name === 'MongoServerError') {
       // Handle MongoDB specific errors
-      switch(err.code) {
+      switch (err.code) {
         case 11000: // Duplicate key
           statusCode = 409;
           message = 'Duplicate key error';
@@ -436,7 +442,7 @@ const createApp = () => {
       statusCode = 404;
       message = 'Resource not found';
     }
-    
+
     // Prepare error response
     const errorResponse = {
       status: 'error',
@@ -445,12 +451,12 @@ const createApp = () => {
       ...(code && { code }),
       ...(Object.keys(details).length > 0 && { details })
     };
-    
+
     // Include stack trace in development
     if (process.env.NODE_ENV === 'development') {
       errorResponse.stack = err.stack;
     }
-    
+
     // Send error response
     res.status(statusCode).json(errorResponse);
   });
@@ -474,7 +480,7 @@ const app = createApp();
 const connectToMongoDB = async (options = {}) => {
   const { retry = true, maxRetries = 3, retryDelay = 2000 } = options;
   let retryCount = 0;
-    
+
   const attemptConnection = async () => {
     try {
       if (cachedDb && mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
@@ -491,10 +497,10 @@ const connectToMongoDB = async (options = {}) => {
       }
 
       console.log('Connecting to MongoDB...');
-      
+
       // Log connection attempt (without credentials)
       const safeUri = config.db.uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
-      
+
       console.log('MongoDB Connection Info:', {
         usingConfig: 'Hardcoded in config',
         uriStartsWith: config.db.uri.startsWith('mongodb+srv://') ? 'mongodb+srv://' : 'mongodb://',
@@ -506,7 +512,7 @@ const connectToMongoDB = async (options = {}) => {
         // Create a new connection with the options from config
         console.log('Attempting to connect to MongoDB...');
         console.log('Using connection string:', config.db.uri);
-        
+
         const connectionOptions = {
           ...config.db.options,
           serverSelectionTimeoutMS: 10000, // 10 seconds timeout
@@ -514,11 +520,11 @@ const connectToMongoDB = async (options = {}) => {
           useNewUrlParser: true,
           useUnifiedTopology: true
         };
-        
+
         console.log('Connection options:', JSON.stringify(connectionOptions, null, 2));
-        
+
         await mongoose.connect(config.db.uri, connectionOptions);
-        
+
         console.log('MongoDB connected successfully');
         console.log('MongoDB Connection Details:', {
           host: mongoose.connection.host,
@@ -527,10 +533,10 @@ const connectToMongoDB = async (options = {}) => {
           readyState: mongoose.connection.readyState,
           models: Object.keys(mongoose.connection.models)
         });
-        
+
         // Cache the connection
         cachedDb = mongoose.connection;
-        
+
         return mongoose.connection;
       } catch (connectError) {
         console.error('MongoDB connection error details:', {
@@ -542,10 +548,10 @@ const connectToMongoDB = async (options = {}) => {
         });
         throw connectError;
       }
-      
+
     } catch (error) {
       console.error(`MongoDB connection error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
-      
+
       // If we should retry and haven't exceeded max retries
       if (retry && retryCount < maxRetries - 1) {
         retryCount++;
@@ -553,7 +559,7 @@ const connectToMongoDB = async (options = {}) => {
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return attemptConnection();
       }
-      
+
       throw error; // Re-throw the error if we're not retrying or have exceeded max retries
     }
   };
@@ -563,15 +569,15 @@ const connectToMongoDB = async (options = {}) => {
     mongoose.connection.on('connected', () => {
       console.log('MongoDB connected event');
     });
-    
+
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       console.log('MongoDB disconnected event');
       cachedDb = null;
-      
+
       // Attempt to reconnect if we're not already in the process of reconnecting
       if (process.env.NODE_ENV === 'production') {
         console.log('Attempting to reconnect to MongoDB...');
@@ -589,7 +595,7 @@ const connectToMongoDB = async (options = {}) => {
 
 // Function to start the server
 const startServer = async () => {
-    // Initialize MongoDB connection with retry logic
+  // Initialize MongoDB connection with retry logic
   let dbConnection;
   try {
     dbConnection = await connectToMongoDB({
@@ -606,7 +612,7 @@ const startServer = async () => {
   }
   try {
     console.log('Starting server...');
-    
+
     // In production, we'll let the app start even if MongoDB is not available initially
     // The connection will be established on the first request
     if (process.env.NODE_ENV === 'development') {
@@ -615,22 +621,22 @@ const startServer = async () => {
     } else {
       console.log('Production mode: MongoDB connection will be established on first request');
     }
-    
+
     const port = config.server.port;
     const server = app.listen(port, () => {
       console.log(`Server running in ${config.server.nodeEnv} mode on port ${port}`);
       console.log(`API Documentation available at http://localhost:${port}/api-docs`);
       console.log(`Health check: http://localhost:${port}/`);
     });
-    
+
     // Handle server shutdown gracefully
     const shutdown = async () => {
       console.log('Shutting down server...');
-      
+
       // Close the server first to stop accepting new connections
       server.close(async () => {
         console.log('Server closed');
-        
+
         // Then close MongoDB connection if it exists
         if (mongoose.connection && mongoose.connection.readyState === 1) {
           try {
@@ -640,35 +646,35 @@ const startServer = async () => {
             console.error('Error closing MongoDB connection:', err);
           }
         }
-        
+
         // Exit the process
         process.exit(0);
       });
-      
+
       // Force exit after 10 seconds if the above takes too long
       setTimeout(() => {
         console.error('Could not close connections in time, forcefully shutting down');
         process.exit(1);
       }, 10000);
     };
-    
+
     // Handle process termination
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
-    
+
     // Handle uncaught exceptions
     process.on('uncaughtException', (error) => {
       console.error('Uncaught Exception:', error);
       shutdown();
     });
-    
+
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
       console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     });
-    
+
     return server;
-    
+
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
