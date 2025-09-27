@@ -435,23 +435,11 @@ const app = createApp();
 const connectToMongoDB = async (options = {}) => {
   const { retry = true, maxRetries = 3, retryDelay = 2000 } = options;
   let retryCount = 0;
-  
-  // Validate MongoDB URI before attempting to connect
-  if (!config.db.uri || !"mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0" ) {
-    throw new Error('MongoDB URI is not configured');
-  }
-  
-  // Ensure the URI is properly formatted
-  if (!config.db.uri.startsWith('mongodb://') && !config.db.uri.startsWith('mongodb+srv://')) {
-    throw new Error(`Invalid MongoDB URI format: ${config.db.uri}. Must start with mongodb:// or mongodb+srv://`);
-  }
-
+    
   const attemptConnection = async () => {
     try {
-      // Return cached connection if available and connected
       if (cachedDb && mongoose.connection && typeof mongoose.connection.readyState !== 'undefined') {
         try {
-          // Verify the connection is still alive
           if (mongoose.connection.db) {
             await mongoose.connection.db.admin().ping();
             console.log('Using existing database connection');
