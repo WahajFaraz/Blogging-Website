@@ -25,13 +25,23 @@ const handleResponse = async (response) => {
     return { success: true };
   }
 
+  // Handle 401 Unauthorized
+  if (response.status === 401) {
+    // You might want to handle token refresh or redirect to login here
+    const error = new Error('Your session has expired. Please log in again.');
+    error.status = 401;
+    throw error;
+  }
+
   let data;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch (err) {
     // If we can't parse JSON, it's probably a server error
     const errorText = await response.text();
-    throw new Error(`Server error: ${response.status} - ${errorText || 'Unknown error'}`);
+    const apiError = new Error(`Server error: ${response.status} - ${errorText || 'Unknown error'}`);
+    apiError.status = response.status;
+    throw apiError;
   }
   
   if (!response.ok) {
@@ -60,10 +70,14 @@ const createOptions = (method, data = null, token = null) => {
   const options = {
     method,
     headers: {
+      'Content-Type': 'application/json',
       ...config.api.defaultHeaders,
     },
     credentials: 'include',
     mode: 'cors',
+    cache: 'no-cache',
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
     timeout: config.api.timeout
   };
   

@@ -66,11 +66,15 @@ const createApp = () => {
   // CORS configuration
   const corsOptions = {
     origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
       if (originIsAllowed(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
+        return callback(null, true);
       }
+      
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+      return callback(new Error(msg), false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
@@ -113,12 +117,11 @@ const createApp = () => {
       // For direct access (no origin) or allowed origins
       if (origin) {
         res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
       } else {
-        // For direct access, allow any origin (since it's a direct API call)
+        // For direct access, allow any origin but without credentials
         res.header('Access-Control-Allow-Origin', '*');
       }
-      
-      res.header('Access-Control-Allow-Credentials', 'true');
       
       // Handle preflight requests
       if (req.method === 'OPTIONS') {
