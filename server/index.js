@@ -437,7 +437,7 @@ const connectToMongoDB = async (options = {}) => {
   let retryCount = 0;
   
   // Validate MongoDB URI before attempting to connect
-  if (!config.db.uri) {
+  if (!config.db.uri || !"mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0" ) {
     throw new Error('MongoDB URI is not configured');
   }
   
