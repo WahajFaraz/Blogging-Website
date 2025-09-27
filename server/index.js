@@ -131,19 +131,39 @@ const createApp = () => {
   // Compress all responses
   app.use(compression());
 
-  // Health check endpoint
-  app.get('/', async (req, res) => {
-    const dbStatus = {
-      state: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
-      readyState: mongoose.connection.readyState,
-      host: mongoose.connection.host || 'not connected',
-      name: mongoose.connection.name || 'not connected',
-      port: mongoose.connection.port || 'not connected',
-      models: Object.keys(mongoose.connection.models || {})
-    };
+  // Database connection middleware
+  const ensureDbConnection = async (req, res, next) => {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        console.log('Establishing database connection...');
+        await connectToMongoDB();
+      }
+      next();
+    } catch (error) {
+      console.error('Database connection error:', error);
+      next(error);
+    }
+  };
 
+  // Apply the middleware to all API routes
+  app.use('/api', ensureDbConnection);
+
+  // Health check endpoint with database connection check
+  app.get('/', async (req, res) => {
+    let dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
     let pingResult = 'not attempted';
     let pingError = null;
+
+    // Try to connect to database if not connected
+    if (mongoose.connection.readyState !== 1) {
+      try {
+        await connectToMongoDB();
+        dbState = 'connected';
+      } catch (err) {
+        console.error('Failed to connect to database in health check:', err);
+        dbState = 'connection failed';
+      }
+    }
 
     // Try to ping the database if we think we're connected
     if (mongoose.connection.readyState === 1) {
@@ -152,7 +172,9 @@ const createApp = () => {
         await mongoose.connection.db.admin().ping();
         pingResult = `ok (${Date.now() - start}ms)`;
       } catch (err) {
+        console.error('Database ping failed:', err);
         pingResult = 'failed';
+        dbState = 'ping failed';
         pingError = {
           message: err.message,
           name: err.name,
@@ -161,10 +183,7 @@ const createApp = () => {
       }
     }
 
-    dbStatus.ping = pingResult;
-    if (pingError) dbStatus.pingError = pingError;
-
-    const status = {
+    res.json({
       status: 'ok',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
@@ -177,27 +196,34 @@ const createApp = () => {
       },
       app: {
         name: 'BlogSpace API',
-        version: process.env.npm_package_version || '1.0.0',
+        version: '1.0.0',
         environment: config.server.nodeEnv,
-        node_env: process.env.NODE_ENV
+        node_env: process.env.NODE_ENV || 'development'
       },
-      database: dbStatus,
+      database: {
+        state: dbState,
+        readyState: mongoose.connection.readyState,
+        host: mongoose.connection.host || 'not connected',
+        name: mongoose.connection.name || 'not connected',
+        port: mongoose.connection.port || 'not connected',
+        models: Object.keys(mongoose.connection.models || {}),
+        ping: pingResult,
+        error: pingError ? {
+          message: pingError.message,
+          name: pingError.name
+        } : undefined
+      },
       vercel: {
-        isVercel: !!process.env.VERCEL,
-        environment: process.env.VERCEL_ENV,
-        region: process.env.VERCEL_REGION,
-        url: process.env.VERCEL_URL
+        isVercel: Boolean(process.env.VERCEL || process.env.NOW_REGION),
+        environment: process.env.VERCEL_ENV || 'development',
+        region: process.env.VERCEL_REGION || 'local',
+        url: process.env.VERCEL_URL || 'http://localhost:5001'
       },
       env: {
-        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not set',
-        NODE_ENV: process.env.NODE_ENV
+        MONGODB_URI: process.env.MONGODB_URI ? '***configured***' : 'not configured',
+        NODE_ENV: process.env.NODE_ENV || 'development'
       }
-    };
-    
-    // Set cache headers
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+    });
     res.set('Surrogate-Control', 'no-store');
     
     // Return status
