@@ -115,9 +115,15 @@ const BlogGrid = ({ blogs: initialBlogs, searchFilters = { query: '', category: 
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Array.isArray(blogs) && blogs.length > 0 ? (
-          blogs.map((blog, index) => (
-            <BlogCard key={blog._id || blog.id || Math.random()} blog={blog} index={index} />
-          ))
+          blogs
+            .filter(blog => blog && blog.author) // Filter out any invalid blog posts
+            .map((blog, index) => (
+              <BlogCard 
+                key={blog._id || blog.id || `blog-${index}`} 
+                blog={blog} 
+                index={index} 
+              />
+            ))
         ) : (
           <div className="text-center text-muted-foreground py-8 col-span-full">
             {searchQuery ? (
@@ -126,7 +132,10 @@ const BlogGrid = ({ blogs: initialBlogs, searchFilters = { query: '', category: 
                 <p className="text-sm">Try different keywords or browse all posts</p>
               </div>
             ) : (
-              "No blogs available"
+              <div>
+                <p className="text-lg mb-2">No blogs available</p>
+                <p className="text-sm">Check back later for new content</p>
+              </div>
             )}
           </div>
         )}

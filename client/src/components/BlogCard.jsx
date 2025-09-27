@@ -63,7 +63,7 @@ const BlogCard = ({ blog, index }) => {
     }
   };
 
-  const isAuthor = user && blog.author._id === user._id;
+  const isAuthor = user && blog.author?._id === user._id;
 
   return (
     <motion.article
@@ -149,11 +149,11 @@ const BlogCard = ({ blog, index }) => {
                   src={blog.author?.avatar?.url} 
                   alt={blog.author?.username || 'User'}
                   size={32}
-                  fallbackText={blog.author?.username || blog.author?.fullName}
+                  fallbackText={blog.author?.username || blog.author?.fullName || 'U'}
                   className="border border-gray-200"
                 />
                 <span className="text-sm font-medium">
-                  {blog.author?.username || 'Unknown Author'}
+                  {blog.author?.username || blog.author?.fullName || 'Unknown Author'}
                 </span>
               </div>
               <div>

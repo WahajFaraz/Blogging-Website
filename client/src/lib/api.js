@@ -71,8 +71,11 @@ const createOptions = (method, data = null, token = null) => {
     headers: {
       ...config.api.defaultHeaders,
     },
-    credentials: 'include',
-    mode: 'cors'
+    credentials: 'include', // This is important for sending cookies with CORS
+    mode: 'cors',
+    cache: 'no-cache',
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer'
   };
 
   // Add auth token if provided
