@@ -61,14 +61,26 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.login({ email, password });
-      const { token, user } = data;
+      const response = await api.login({ email, password });
+      const { token, user } = response.data || response;
+      
+      if (!token) {
+        throw new Error('No token received from server');
+      }
       
       localStorage.setItem('token', token);
-      setUser(user);
+      
+      // If user data is not in the response, fetch it using the token
+      if (!user) {
+        const userData = await fetchUserProfile(token);
+        setUser(userData);
+      } else {
+        setUser(user);
+      }
+      
       setToken(token);
       setError(null);
-      return user;
+      return user || response.user;
     } catch (err) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
@@ -86,16 +98,12 @@ export const AuthProvider = ({ children }) => {
       const isFormData = userData instanceof FormData;
       
       if (isFormData) {
-        // Handle file upload
-        const response = await fetch(createApiUrl('auth/register'), {
-          method: 'POST',
-          body: userData
+        // Convert FormData to object for the API
+        const formDataObj = {};
+        userData.forEach((value, key) => {
+          formDataObj[key] = value;
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Registration failed');
-        }
+        await api.register(formDataObj);
       } else {
         // Handle regular form data
         await api.register(userData);
@@ -113,7 +121,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Signup error:', error);
       let errorMessage = 'Signup failed';
       
-      if (error.response?.data) {
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data) {
         const { data } = error.response;
         if (data.errors && Array.isArray(data.errors)) {
           errorMessage = data.errors.map(err => err.msg || err.error).join(', ');
