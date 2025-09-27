@@ -340,8 +340,15 @@ const MyPosts = () => {
                         <div className="mb-2">
                           <h3 className="text-xl font-bold text-foreground line-clamp-2">
                             <Link 
-                              to={`/blog/${post._id}`} 
+                              to={`/blog/${post.slug || post._id}`} 
                               className="hover:text-blog-primary transition-colors after:absolute after:inset-0"
+                              onClick={(e) => {
+                                // Prevent navigation if the click is on edit/delete buttons
+                                if (e.target.closest('button, a, [role="button"]')) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }
+                              }}
                             >
                               {post.title}
                             </Link>

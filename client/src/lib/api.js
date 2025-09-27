@@ -165,51 +165,92 @@ const api = {
 
   // Blog endpoints
   getBlogs: async (params = {}, token = null) => {
-    // If params is a string (legacy support), convert it to an object
-    if (typeof params === 'string') {
-      const searchParams = new URLSearchParams(
-        params.startsWith('?') ? params.slice(1) : params
-      );
-      params = {};
-      searchParams.forEach((value, key) => {
-        params[key] = value;
-      });
-    }
+    try {
+      // If params is a string (legacy support), convert it to an object
+      if (typeof params === 'string') {
+        const searchParams = new URLSearchParams(
+          params.startsWith('?') ? params.slice(1) : params
+        );
+        params = {};
+        searchParams.forEach((value, key) => {
+          params[key] = value;
+        });
+      }
 
-    // Ensure we always have valid pagination
-    const finalParams = {
-      page: 1,
-      limit: 100, // Increase limit to fetch all posts
-      ...params
-    };
-
-    const url = getBlogsUrl(finalParams);
-    console.log('Fetching blogs from URL:', url);
-    
-    // Create options with token if provided
-    const options = createOptions('GET', null, token);
-    
-    // Ensure the Authorization header is set if token is provided
-    if (token) {
-      options.headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
+      // Ensure we always have valid pagination
+      const finalParams = {
+        page: 1,
+        limit: 100, // Increase limit to fetch all posts
+        ...params
       };
+
+      const url = getBlogsUrl(finalParams);
+      console.log('Fetching blogs from URL:', url);
+      
+      // Create options with token if provided
+      const options = createOptions('GET', null, token);
+      
+      // Ensure the Authorization header is set if token is provided
+      if (token) {
+        options.headers = {
+          ...options.headers,
+          'Authorization': `Bearer ${token}`
+        };
+      }
+      
+      console.log('Request options:', options);
+      const response = await fetch(url, options);
+      const data = await handleResponse(response);
+      
+      // Handle different response formats
+      let posts = [];
+      if (Array.isArray(data)) {
+        posts = data;
+      } else if (data && Array.isArray(data.blogs)) {
+        posts = data.blogs;
+      } else if (data && typeof data === 'object') {
+        posts = [data];
+      }
+      
+      // Ensure each post has required fields
+      posts = posts.map(post => ({
+        ...post,
+        id: post._id || post.id, // Ensure we have both id and _id for compatibility
+        _id: post._id || post.id,
+        slug: post.slug || post.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      }));
+      
+      console.log('Processed blogs data:', { posts, originalData: data });
+      return posts;
+    } catch (error) {
+      console.error('Error in getBlogs:', error);
+      throw error;
     }
-    
-    console.log('Request options:', options);
-    const response = await fetch(url, options);
-    const data = await handleResponse(response);
-    console.log('Fetched blogs data:', data);
-    return data;
   },
 
-  getBlog: async (id) => {
-    const response = await fetch(
-      createApiUrl(`blogs/${id}`),
-      createOptions('GET')
-    );
-    return handleResponse(response);
+  getBlog: async (id, token = null) => {
+    try {
+      const response = await fetch(
+        createApiUrl(`blogs/${id}`),
+        createOptions('GET', null, token)
+      );
+      
+      const data = await handleResponse(response);
+      
+      // Ensure the blog has all required fields
+      const blog = {
+        ...data,
+        id: data._id || data.id || id,
+        _id: data._id || data.id || id,
+        slug: data.slug || data.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      };
+      
+      console.log('Processed blog data:', { blog, originalData: data });
+      return blog;
+    } catch (error) {
+      console.error('Error in getBlog:', error);
+      throw error;
+    }
   },
 
   createBlog: async (blogData, token) => {
