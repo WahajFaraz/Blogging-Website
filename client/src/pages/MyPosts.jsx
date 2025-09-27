@@ -36,11 +36,30 @@ const MyPosts = () => {
   const fetchMyPosts = async () => {
     try {
       setLoading(true);
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+      
+      console.log('Fetching user posts with token:', token);
       // Pass myPosts as a string 'true' and include the token in the options
       const data = await api.getBlogs({ myPosts: 'true' }, token);
       console.log('Fetched posts:', data);
-      // The response is an array of posts, not an object with a blogs property
-      setPosts(Array.isArray(data) ? data : []);
+      
+      // The response should be an array of posts
+      if (Array.isArray(data)) {
+        setPosts(data);
+      } else if (data && Array.isArray(data.blogs)) {
+        // Handle case where response is an object with a blogs array
+        setPosts(data.blogs);
+      } else if (data && typeof data === 'object') {
+        // If it's a single post object, wrap it in an array
+        setPosts([data]);
+      } else {
+        // If we can't determine the format, set empty array
+        console.warn('Unexpected response format:', data);
+        setPosts([]);
+      }
+      
       setError(null);
     } catch (error) {
       console.error('Error fetching posts:', error);

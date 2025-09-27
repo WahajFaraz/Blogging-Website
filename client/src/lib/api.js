@@ -188,8 +188,20 @@ const api = {
     
     // Create options with token if provided
     const options = createOptions('GET', null, token);
+    
+    // Ensure the Authorization header is set if token is provided
+    if (token) {
+      options.headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+      };
+    }
+    
+    console.log('Request options:', options);
     const response = await fetch(url, options);
-    return await handleResponse(response);
+    const data = await handleResponse(response);
+    console.log('Fetched blogs data:', data);
+    return data;
   },
 
   getBlog: async (id) => {
