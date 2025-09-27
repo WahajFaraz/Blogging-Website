@@ -38,8 +38,6 @@ const createApp = () => {
   const allowedOrigins = [
     'https://blogspace-gamma.vercel.app',
     'https://blogging-website-lyart.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
   ];
 
   // Log all requests
@@ -224,14 +222,56 @@ const app = createApp();
 
 /* ---------- MongoDB connection ---------- */
 const connectToMongoDB = async () => {
-  if (cachedDb && mongoose.connection.readyState === 1) return;
-  await mongoose.connect(config.db.uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-  cachedDb = mongoose.connection;
-  console.log('MongoDB connected');
+  try {
+    if (cachedDb && mongoose.connection.readyState === 1) {
+      console.log('Using existing database connection');
+      return;
+    }
+
+    console.log('Connecting to MongoDB...');
+    
+    // Close any existing connections first
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
+    // Connect with retry logic
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        await mongoose.connect(config.db.uri, {
+          ...config.db.options,
+          serverSelectionTimeoutMS: 5000,
+          socketTimeoutMS: 45000,
+        });
+        
+        cachedDb = mongoose.connection;
+        console.log('MongoDB connected successfully');
+        return;
+      } catch (error) {
+        attempts++;
+        console.error(`MongoDB connection attempt ${attempts} failed:`, error.message);
+        
+        if (attempts === maxAttempts) {
+          console.error('Max connection attempts reached. Could not connect to MongoDB.');
+          throw error;
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
 };
+
+// Handle connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);});
 
 /* ---------- Server ---------- */
 const startServer = async () => {

@@ -15,7 +15,7 @@ const config = {
   },
 
   db: {
-    uri: "mongodb+srv://0wahaj0:pLf2JP41NTxNGQiH@cluster0.j9dlacs.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    uri: process.env.MONGODB_URI || "mongodb://localhost:27017/blogspace",
     options: {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
@@ -25,10 +25,8 @@ const config = {
       maxIdleTimeMS: 30000,
       retryWrites: true,
       retryReads: true,
-
       useNewUrlParser: true,
       useUnifiedTopology: true,
-
       autoIndex: process.env.NODE_ENV !== 'production',
     },
   },
