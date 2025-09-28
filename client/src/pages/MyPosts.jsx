@@ -36,29 +36,36 @@ const MyPosts = () => {
   const fetchMyPosts = async () => {
     try {
       setLoading(true);
-      if (!token) {
-        throw new Error('No authentication token found. Please log in again.');
+      if (!token || !user) {
+        throw new Error('No authentication token or user data found. Please log in again.');
       }
       
-      console.log('Fetching user posts with token:', token);
-      // Pass myPosts as a string 'true' and include the token in the options
-      const data = await api.getBlogs({ myPosts: 'true' }, token);
-      console.log('Fetched posts:', data);
+      console.log('Fetching posts for user:', user._id);
       
-      // The response should be an array of posts
-      if (Array.isArray(data)) {
-        setPosts(data);
-      } else if (data && Array.isArray(data.blogs)) {
-        // Handle case where response is an object with a blogs array
-        setPosts(data.blogs);
-      } else if (data && typeof data === 'object') {
+      // Fetch all posts for the current user
+      const response = await api.getBlogs({ 
+        myPosts: 'true',
+        limit: 100 // Fetch more posts to ensure we get all of them
+      }, token);
+      
+      console.log('Fetched posts response:', response);
+      
+      // The response should be an object with a blogs array and total count
+      let postsData = [];
+      
+      if (response && Array.isArray(response.blogs)) {
+        // If response has a blogs array, use that
+        postsData = response.blogs;
+      } else if (Array.isArray(response)) {
+        // If response is directly an array, use it
+        postsData = response;
+      } else if (response && typeof response === 'object') {
         // If it's a single post object, wrap it in an array
-        setPosts([data]);
-      } else {
-        // If we can't determine the format, set empty array
-        console.warn('Unexpected response format:', data);
-        setPosts([]);
+        postsData = [response];
       }
+      
+      console.log('Processed posts data:', postsData);
+      setPosts(postsData || []);
       
       setError(null);
     } catch (error) {
