@@ -200,7 +200,7 @@ const Explore = () => {
                     ))}
                   </div>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{blog.author?.name || 'Anonymous'}</span>
+                    <span>{blog.author?.fullName || blog.author?.username || 'Unknown Author'}</span>
                     <span>{format(new Date(blog.createdAt), 'MMM d, yyyy')}</span>
                   </div>
                 </CardContent>

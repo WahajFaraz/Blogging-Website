@@ -142,23 +142,18 @@ const BlogCard = ({ blog, index }) => {
           <div className="flex items-center gap-3">
             <Link
               to={`/author/${blog.author._id}`}
-              className="flex items-center gap-3 z-10 relative"
+              className="flex items-center gap-3 z-10 relative group"
             >
-              <div className="flex items-center gap-2">
-                <Avatar 
-                  src={blog.author?.avatar?.url} 
-                  alt={blog.author?.username || 'User'}
-                  size={32}
-                  fallbackText={blog.author?.username || blog.author?.fullName}
-                  className="border border-gray-200"
-                />
-                <span className="text-sm font-medium">
-                  {blog.author?.username || 'Unknown Author'}
-                </span>
-              </div>
+              <Avatar 
+                src={blog.author?.avatar?.url} 
+                alt={blog.author?.fullName || blog.author?.username || 'User'}
+                size={32}
+                fallbackText={blog.author?.fullName || blog.author?.username}
+                className="border border-gray-200 group-hover:border-blog-primary transition-colors"
+              />
               <div>
-                <p className="text-sm font-medium text-foreground hover:text-blog-primary transition-colors">
-                  {blog.author.fullName}
+                <p className="text-sm font-medium text-foreground group-hover:text-blog-primary transition-colors">
+                  {blog.author?.fullName || blog.author?.username || 'Unknown Author'}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" />
