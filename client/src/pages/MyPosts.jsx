@@ -100,10 +100,14 @@ const MyPosts = () => {
     });
   };
 
+  // Separate posts into published and drafts
+  const publishedPosts = posts.filter(post => post.status === 'published');
+  const draftPosts = posts.filter(post => post.status === 'draft');
+
   const stats = {
     totalPosts: posts.length,
-    publishedPosts: posts.filter(post => post.status === 'published').length,
-    draftPosts: posts.filter(post => post.status === 'draft').length,
+    publishedPosts: publishedPosts.length,
+    draftPosts: draftPosts.length,
     totalViews: posts.reduce((sum, post) => sum + (post.views || 0), 0),
     totalLikes: posts.reduce((sum, post) => sum + (post.likes?.length || 0), 0),
     totalComments: posts.reduce((sum, post) => sum + (post.comments?.length || 0), 0),
@@ -136,10 +140,6 @@ const MyPosts = () => {
       </div>
     );
   }
-
-  // Separate posts into drafts and published
-  const publishedPosts = posts.filter(post => post.status === 'published');
-  const draftPosts = posts.filter(post => post.status === 'draft');
 
   const renderPostGrid = (posts, emptyMessage) => {
     if (posts.length === 0) {
@@ -340,63 +340,149 @@ const MyPosts = () => {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Engagement</CardTitle>
-                <CardDescription>Post performance metrics</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Comments</span>
-                  <span className="font-medium">{stats.totalComments}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg. Views</span>
-                  <span className="font-medium">{stats.averageViews}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Drafts</span>
-                  <span className="font-medium">{stats.draftPosts}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-                <CardDescription>Manage your content</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => navigate('/create')} 
-                  className="w-full mb-3"
-                >
+          {/* Published Posts Section */}
+          <div className="mb-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Published Posts</h2>
+              <span className="text-sm text-muted-foreground">{publishedPosts.length} {publishedPosts.length === 1 ? 'post' : 'posts'}</span>
+            </div>
+            
+            {publishedPosts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {publishedPosts.map((post) => (
+                  <div key={post._id} className="bg-card border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    {post.media?.url && (
+                      <div className="h-48 overflow-hidden">
+                        <img 
+                          src={post.media.url} 
+                          alt={post.title} 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(post.publishedAt || post.createdAt)}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {post.status}
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">
+                        <Link to={`/blog/${post._id}`} className="hover:text-blog-primary">
+                          {post.title}
+                        </Link>
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                        {post.excerpt || (post.content ? post.content.substring(0, 100) + '...' : '')}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Eye className="h-4 w-4 mr-1" />
+                            <span>{post.views || 0}</span>
+                          </div>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Heart className="h-4 w-4 mr-1" />
+                            <span>{post.likes?.length || 0}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-sm"
+                          onClick={() => navigate(`/edit/${post._id}`)}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium text-foreground mb-1">No published posts yet</h3>
+                <p className="text-muted-foreground text-sm mb-4">Your published posts will appear here</p>
+                <Button onClick={() => navigate('/create')}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create New Post
+                  Create your first post
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/profile')} 
-                  className="w-full"
-                >
-                  View Profile
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+            )}
+          </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Tips</CardTitle>
-                <CardDescription>Improve your posts</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>• Use engaging titles and excerpts</p>
-                <p>• Add relevant tags for discoverability</p>
-                <p>• Include high-quality media</p>
-                <p>• Post consistently</p>
-              </CardContent>
-            </Card>
+          {/* Drafts Section */}
+          <div className="mb-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Drafts</h2>
+              <span className="text-sm text-muted-foreground">{draftPosts.length} {draftPosts.length === 1 ? 'draft' : 'drafts'}</span>
+            </div>
+            
+            {draftPosts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {draftPosts.map((post) => (
+                  <div key={post._id} className="bg-card border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    {post.media?.url && (
+                      <div className="h-48 overflow-hidden">
+                        <img 
+                          src={post.media.url} 
+                          alt={post.title} 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 opacity-70"
+                        />
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-muted-foreground">
+                          Last updated: {formatDate(post.updatedAt || post.createdAt)}
+                        </span>
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                          Draft
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">
+                        {post.title || 'Untitled Draft'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                        {post.excerpt || (post.content ? post.content.substring(0, 100) + '...' : 'No content yet')}
+                      </p>
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-sm"
+                          onClick={() => navigate(`/edit/${post._id}`)}
+                        >
+                          Continue Editing
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(post._id)}
+                          disabled={deleting === post._id}
+                        >
+                          {deleting === post._id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium text-foreground mb-1">No drafts yet</h3>
+                <p className="text-muted-foreground text-sm mb-4">Your draft posts will appear here</p>
+                <Button variant="outline" onClick={() => navigate('/create')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Start a new draft
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Published Posts Section */}
