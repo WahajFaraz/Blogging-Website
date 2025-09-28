@@ -12,9 +12,14 @@ const { api } = config;
 const BlogCard = ({ blog, index }) => {
   const { user, token, isAuthenticated } = useAuth();
   const [likedState, setLikedState] = useState({
-    isLiked: blog.isLiked || false,
-    likesCount: (blog.likes && blog.likes.length) || 0,
+    isLiked: blog?.isLiked || false,
+    likesCount: (blog?.likes && Array.isArray(blog.likes) ? blog.likes.length : 0) || 0,
   });
+  
+  // Ensure we have valid blog data
+  if (!blog) {
+    return null; // Or return a placeholder/skeleton
+  }
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -63,7 +68,7 @@ const BlogCard = ({ blog, index }) => {
     }
   };
 
-  const isAuthor = user && blog.author?._id === user._id;
+  const isAuthor = user && blog.author?._id && user._id && blog.author._id === user._id;
 
   return (
     <motion.article
