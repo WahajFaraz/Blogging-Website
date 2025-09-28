@@ -393,17 +393,15 @@ const MyPosts = () => {
           </div>
 
           {/* Published Posts Section */}
-          {publishedPosts.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Published Posts ({publishedPosts.length})</CardTitle>
-                <CardDescription>Your published blog posts visible to everyone</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {renderPostGrid(publishedPosts, 'No published posts yet')}
-              </CardContent>
-            </Card>
-          )}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Published Posts ({publishedPosts.length})</CardTitle>
+              <CardDescription>Your published blog posts visible to everyone</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderPostGrid(publishedPosts, 'No published posts yet')}
+            </CardContent>
+          </Card>
 
           {/* Draft Posts Section */}
           <Card className="mb-8">
