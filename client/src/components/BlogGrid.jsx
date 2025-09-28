@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import api from '../lib/api';
 import { Button } from './ui/button';
 import { Loader2, Search, AlertCircle, RefreshCw, X, Pencil } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
