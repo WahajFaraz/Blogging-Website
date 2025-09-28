@@ -50,21 +50,29 @@ const MyPosts = () => {
       
       console.log('Fetched posts response:', response);
       
-      // The response should be an object with a blogs array and total count
+      // The response should be an object with a data.blogs array and total count
       let postsData = [];
       
-      if (response && Array.isArray(response.blogs)) {
-        // If response has a blogs array, use that
+      if (response && response.data && Array.isArray(response.data.blogs)) {
+        // If response has a data.blogs array, use that (main route format)
+        postsData = response.data.blogs;
+        console.log('Using response.data.blogs format');
+      } else if (response && Array.isArray(response.blogs)) {
+        // If response has a blogs array directly, use that (my-posts route format)
         postsData = response.blogs;
+        console.log('Using response.blogs format');
       } else if (Array.isArray(response)) {
         // If response is directly an array, use it
         postsData = response;
+        console.log('Using direct array format');
       } else if (response && typeof response === 'object') {
         // If it's a single post object, wrap it in an array
         postsData = [response];
+        console.log('Using single object format');
       }
       
       console.log('Processed posts data:', postsData);
+      console.log('Number of posts found:', postsData.length);
       setPosts(postsData || []);
       
       setError(null);
@@ -230,7 +238,10 @@ const MyPosts = () => {
             
             {posts.length > 0 ? (
               <div className="space-y-6">
-                {posts.map((post) => (
+                {console.log('Rendering posts:', posts.length, 'posts')}
+                {posts.map((post) => {
+                  console.log('Rendering post:', post._id, post.title);
+                  return (
                   <motion.div
                     key={post._id}
                     initial={{ opacity: 0, y: 10 }}
@@ -319,7 +330,8 @@ const MyPosts = () => {
                       </div>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-16 border-2 border-dashed rounded-lg">

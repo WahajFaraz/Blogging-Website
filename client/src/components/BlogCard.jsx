@@ -13,7 +13,7 @@ const BlogCard = ({ blog, index }) => {
   const { user, token, isAuthenticated } = useAuth();
   const [likedState, setLikedState] = useState({
     isLiked: blog.isLiked || false,
-    likesCount: blog.likes.length,
+    likesCount: blog.likes?.length || 0,
   });
 
   const formatDate = (dateString) => {
@@ -63,7 +63,7 @@ const BlogCard = ({ blog, index }) => {
     }
   };
 
-  const isAuthor = user && blog.author._id === user._id;
+  const isAuthor = user && blog.author && blog.author._id === user._id;
 
   return (
     <motion.article
