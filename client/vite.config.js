@@ -1,14 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'path';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      // Required polyfills for Vercel
       'path': 'path-browserify',
       'stream': 'stream-browserify',
       'util': 'util/',
@@ -30,14 +28,12 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       onwarn(warning, warn) {
-        // Ignore specific warnings
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
         if (warning.code === 'SOURCEMAP_ERROR') return;
         if (warning.message?.includes('node:path')) return;
         if (warning.message?.includes('Use of eval')) return;
         if (warning.message?.includes('Rollup')) return;
-        // Use default for other warnings
         warn(warning);
       },
       output: {

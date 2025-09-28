@@ -1,1 +1,0 @@
-// This file is deprecated. Cloudinary is now used for file uploads.
