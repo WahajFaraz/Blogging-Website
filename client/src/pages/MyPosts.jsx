@@ -333,43 +333,6 @@ const MyPosts = () => {
               </div>
             )}
           </div>
-
-          {/* Published Posts Section */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Published Posts ({publishedPosts.length})</CardTitle>
-              <CardDescription>Your published blog posts visible to everyone</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderPostGrid(publishedPosts, 'No published posts yet')}
-            </CardContent>
-          </Card>
-
-          {/* Draft Posts Section */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Drafts ({draftPosts.length})</CardTitle>
-              <CardDescription>Your unpublished draft posts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderPostGrid(draftPosts, 'No draft posts yet')}
-            </CardContent>
-          </Card>
-
-          {/* Empty State */}
-          {posts.length === 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Posts (0)</CardTitle>
-                <CardDescription>You haven't created any posts yet</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">No posts yet</h3>
-                <p className="text-muted-foreground mb-4">Start writing your first blog post</p>
-                <Button onClick={() => navigate('/create')}>
         </motion.div>
       </div>
     </div>
