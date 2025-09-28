@@ -12,14 +12,9 @@ const { api } = config;
 const BlogCard = ({ blog, index }) => {
   const { user, token, isAuthenticated } = useAuth();
   const [likedState, setLikedState] = useState({
-    isLiked: blog?.isLiked || false,
-    likesCount: (blog?.likes && Array.isArray(blog.likes) ? blog.likes.length : 0) || 0,
+    isLiked: blog.isLiked || false,
+    likesCount: blog.likes.length,
   });
-  
-  // Ensure we have valid blog data
-  if (!blog) {
-    return null; // Or return a placeholder/skeleton
-  }
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -68,7 +63,7 @@ const BlogCard = ({ blog, index }) => {
     }
   };
 
-  const isAuthor = user && blog.author?._id && user._id && blog.author._id === user._id;
+  const isAuthor = user && blog.author._id === user._id;
 
   return (
     <motion.article
@@ -154,21 +149,21 @@ const BlogCard = ({ blog, index }) => {
                   src={blog.author?.avatar?.url} 
                   alt={blog.author?.username || 'User'}
                   size={32}
-                  fallbackText={blog.author?.username || blog.author?.fullName || 'U'}
+                  fallbackText={blog.author?.username || blog.author?.fullName}
                   className="border border-gray-200"
                 />
                 <span className="text-sm font-medium">
-                  {blog.author?.username || blog.author?.fullName || 'Unknown Author'}
+                  {blog.author?.username || 'Unknown Author'}
                 </span>
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground hover:text-blog-primary transition-colors">
                   {blog.author.fullName}
                 </p>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Heart className="h-4 w-4 mr-1" />
-                      <span>{(blog.likes && blog.likes.length) || 0}</span>
-                    </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {formatDate(blog.publishedAt)}
+                </div>
               </div>
             </Link>
           </div>
@@ -176,11 +171,11 @@ const BlogCard = ({ blog, index }) => {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {blog.readTime || 0} min
+              {blog.readTime} min
             </span>
             <span className="flex items-center gap-1">
               <Eye className="h-3 w-3" />
-              {blog.views || 0}
+              {blog.views}
             </span>
           </div>
         </div>
