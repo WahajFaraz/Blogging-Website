@@ -10,7 +10,6 @@ const Avatar = ({
 }) => {
   const [imgError, setImgError] = useState(false);
   
-  // If there's no source or there was an error loading the image
   if (!src || imgError) {
     const initial = fallbackText 
       ? fallbackText.charAt(0).toUpperCase()

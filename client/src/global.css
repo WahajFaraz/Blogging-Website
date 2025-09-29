@@ -4,6 +4,123 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base font size for better mobile scaling with fluid typography */
+html {
+  font-size: 14px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Responsive typography with fluid scaling */
+@media (min-width: 320px) {
+  html {
+    font-size: calc(14px + (16 - 14) * ((100vw - 320px) / (640 - 320)));
+  }
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: calc(15px + (16 - 15) * ((100vw - 640px) / (1024 - 640)));
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 18px;
+  }
+}
+
+/* Smooth scrolling for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better image handling */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive iframes */
+iframe, embed, object, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Touch target sizes */
+button, [role="button"], .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent layout shifts */
+img, svg, video, canvas, audio, iframe, embed, object {
+  display: block;
+  vertical-align: middle;
+}
+
+/* Responsive tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Print styles */
+@media print {
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a, a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+  
+  pre, blockquote {
+    page-break-inside: avoid;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tr, img {
+    page-break-inside: avoid;
+  }
+  
+  img {
+    max-width: 100% !important;
+  }
+  
+  p, h2, h3 {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  h2, h3 {
+    page-break-after: avoid;
+  }
+}
+
 
 @layer base {
   :root {
@@ -121,13 +238,16 @@
 
   .card-hover {
     @apply transition-all duration-300 hover:shadow-card-hover hover:scale-105;
+    @apply sm:hover:scale-105 md:hover:scale-105; /* Scale effect only on larger screens */
   }
 
   .btn-gradient {
-    @apply bg-gradient-primary text-white border-0 hover:opacity-90 transition-all duration-300 hover:scale-105;
+    @apply bg-gradient-primary text-white border-0 hover:opacity-90 transition-all duration-300;
+    @apply transform sm:hover:scale-105 md:hover:scale-105; /* Scale effect only on larger screens */
+    @apply w-full sm:w-auto; /* Full width on mobile, auto on larger screens */
+    @apply px-4 py-2 text-sm sm:text-base; /* Better touch targets on mobile */
   }
 
-  /* Line clamp utilities */
   .line-clamp-1 {
     overflow: hidden;
     display: -webkit-box;
@@ -147,6 +267,27 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+
+  /* Responsive container */
+  .container {
+    @apply px-4 sm:px-6 lg:px-8; /* Responsive padding */
+    @apply mx-auto; /* Center the container */
+    @apply w-full; /* Full width */
+  }
+
+  /* Responsive images */
+  img {
+    @apply max-w-full h-auto;
+    @apply object-cover;
+  }
+
+  /* Touch targets for mobile */
+  @media (max-width: 640px) {
+    button, a, [role="button"], [role="tab"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 
   .line-clamp-4 {

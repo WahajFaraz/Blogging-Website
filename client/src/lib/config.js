@@ -24,7 +24,7 @@ export const config = {
   
   cache: {
     enabled: true,
-    ttl: 5 * 60 * 1000, // 5 minutes
+    ttl: 5 * 60 * 1000,
   }
 };
 

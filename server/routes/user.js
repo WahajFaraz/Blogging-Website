@@ -13,7 +13,7 @@ const router = express.Router();
 const generateToken = (userId) => {
   return jwt.sign(
     { userId },
-    process.env.JWT_SECRET || "thisismysupersecretformyportfoliobloggingwebsite",
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 };
@@ -94,10 +94,9 @@ router.post('/signup', uploadMiddleware, [
 
     await user.save();
 
-    // Generate token with userId in the payload
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || "thisismysupersecretformyportfoliobloggingwebsite",
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -108,14 +107,12 @@ router.post('/signup', uploadMiddleware, [
     });
 
   } catch (error) {
-    console.error('Signup error:', error);
     res.status(500).json({ error: 'Server error during registration' });
   } finally {
     if (avatarFile && avatarFile.tempFilePath) {
       try {
         await fs.unlink(avatarFile.tempFilePath);
       } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
       }
     }
   }
@@ -151,22 +148,14 @@ router.post('/login', [
       return res.status(400).json({ error: 'Invalid Credentials' });
     }
 
-    // Ensure user._id is a string
     const userId = user._id.toString();
-    console.log('Generating token for user:', { 
-      userId,
-      email: user.email,
-      type: typeof userId
-    });
 
-    // Generate token with userId in the payload
     const token = jwt.sign(
       { userId },
-      process.env.JWT_SECRET || "thisismysupersecretformyportfoliobloggingwebsite",
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log('Token generated successfully');
 
     res.json({
       message: 'Login successful',
@@ -175,14 +164,9 @@ router.post('/login', [
     });
 
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({ error: 'Invalid Credentials' });
   }
 });
-
-
-
-// Get current user's profile
 
 router.get('/me', auth, async (req, res) => {
   try {
@@ -190,7 +174,6 @@ router.get('/me', auth, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    // Get user with followers and following
     const user = await User.findById(req.user._id)
       .select('-password -__v')
       .populate('followers', 'username fullName avatar')
@@ -201,7 +184,6 @@ router.get('/me', auth, async (req, res) => {
     }
     
     try {
-      // Get user's published posts
       const userPosts = await Blog.find({ 
         author: user._id, 
         status: 'published' 
@@ -209,27 +191,22 @@ router.get('/me', auth, async (req, res) => {
       .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
       .sort({ publishedAt: -1 });
       
-      // Convert user to plain object and add posts
       const userWithPosts = user.toObject();
       userWithPosts.posts = userPosts || [];
       userWithPosts.postsCount = userPosts.length;
       
       return res.json(userWithPosts);
     } catch (error) {
-      console.error('Error fetching user posts:', error);
-      // If there's an error getting posts, still return the user without posts
       const userWithoutPosts = user.toObject();
       userWithoutPosts.posts = [];
       userWithoutPosts.postsCount = 0;
       return res.json(userWithoutPosts);
     }
   } catch (error) {
-    console.error('Error fetching user profile:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get user by ID
 router.get('/id/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
@@ -243,7 +220,6 @@ router.get('/id/:userId', async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error('Get user by id error:', error);
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -324,14 +300,12 @@ router.put('/profile', auth, uploadMiddleware, [
     });
 
   } catch (error) {
-    console.error('Update profile error:', error);
     res.status(500).json({ error: 'Server error during profile update' });
   } finally {
     if (avatarFile && avatarFile.tempFilePath) {
       try {
         await fs.unlink(avatarFile.tempFilePath);
       } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
       }
     }
   }
@@ -349,7 +323,6 @@ router.get('/:username', async (req, res) => {
     }
     
     try {
-      // Get user's published posts
       const userPosts = await Blog.find({ 
         author: user._id, 
         status: 'published' 
@@ -357,30 +330,24 @@ router.get('/:username', async (req, res) => {
       .select('title slug excerpt featuredImage publishedAt readTime views likesCount commentsCount')
       .sort({ publishedAt: -1 });
       
-      // Convert user to plain object and add posts
       const userWithPosts = user.toObject();
       userWithPosts.posts = userPosts || [];
       userWithPosts.postsCount = userPosts.length;
       
       return res.json(userWithPosts);
     } catch (error) {
-      console.error('Error fetching user posts:', error);
-      // If there's an error getting posts, still return the user without posts
       const userWithoutPosts = user.toObject();
       userWithoutPosts.posts = [];
       userWithoutPosts.postsCount = 0;
       return res.json(userWithoutPosts);
     }
   } catch (error) {
-    console.error('Get public profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Logout route
 router.post('/logout', auth, async (req, res) => {
   try {
-    // Add the token to the blacklist
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (token) {
       blacklistToken(token);
@@ -388,12 +355,10 @@ router.post('/logout', auth, async (req, res) => {
     
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    console.error('Logout error:', error);
     res.status(500).json({ error: 'Error during logout' });
   }
 });
 
-// Follow user route
 router.post('/follow/:userId', auth, async (req, res) => {
   try {
     if (req.user._id.toString() === req.params.userId) {
@@ -420,7 +385,6 @@ router.post('/follow/:userId', auth, async (req, res) => {
     res.json({ message: 'User followed successfully' });
 
   } catch (error) {
-    console.error('Follow user error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -447,12 +411,10 @@ router.post('/unfollow/:userId', auth, async (req, res) => {
     res.json({ message: 'User unfollowed successfully' });
 
   } catch (error) {
-    console.error('Unfollow user error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get current user's profile with populated data
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -465,7 +427,6 @@ router.get('/profile', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Handle missing avatar
     if (!user.avatar || !user.avatar.url) {
       user.avatar = {
         url: 'https://via.placeholder.com/150?text=U',
@@ -473,7 +434,6 @@ router.get('/profile', auth, async (req, res) => {
       };
     }
 
-    // Process blogs with missing images
     if (user.blogs) {
       user.blogs = user.blogs.map(blog => {
         if (!blog.featuredImage || !blog.featuredImage.url) {
@@ -486,7 +446,6 @@ router.get('/profile', auth, async (req, res) => {
       });
     }
 
-    // Process bookmarks with missing images
     if (user.bookmarks) {
       user.bookmarks = user.bookmarks.map(blog => {
         if (!blog.featuredImage || !blog.featuredImage.url) {
@@ -501,12 +460,10 @@ router.get('/profile', auth, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error('Profile fetch error:', error);
     res.status(500).json({ error: 'Error fetching profile' });
   }
 });
 
-// Get user's profile image
 router.get('/profile-image', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('avatar');
@@ -515,7 +472,6 @@ router.get('/profile-image', auth, async (req, res) => {
     }
     res.json(user.avatar);
   } catch (error) {
-    console.error('Error fetching profile image:', error);
     res.status(500).json({ error: 'Failed to fetch profile image' });
   }
 });

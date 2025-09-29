@@ -181,7 +181,6 @@ const EditProfile = () => {
         }
       }
     } catch (error) {
-      console.error('Profile update error:', error);
       setError('Failed to update profile');
     } finally {
       setLoading(false);
@@ -294,7 +293,6 @@ const EditProfile = () => {
                             src={avatar?.preview || user?.avatar?.url || ''} 
                             alt={user?.fullName || user?.username || 'Profile'}
                             className="object-cover w-full h-full"
-                            onLoad={() => console.log('Avatar loaded successfully')}
                             onError={(e) => {
                             }}
                           />

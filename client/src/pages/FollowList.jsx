@@ -60,7 +60,7 @@ const FollowList = () => {
     const isFollowing = followingStatus[targetUserId];
     const endpoint = isFollowing ? 'unfollow' : 'follow';
 
-    setFollowingStatus(prev => ({ ...prev, [targetUserId]: !isFollowing })); // Optimistic update
+    setFollowingStatus(prev => ({ ...prev, [targetUserId]: !isFollowing }));
 
     try {
         const response = await fetch(createApiUrl(`users/${endpoint}/${targetUserId}`), {
@@ -74,11 +74,9 @@ const FollowList = () => {
         if (!response.ok) {
             setFollowingStatus(prev => ({ ...prev, [targetUserId]: isFollowing }));
             const data = await response.json();
-            console.error('Follow/unfollow error:', data.error);
         }
     } catch (error) {
         setFollowingStatus(prev => ({ ...prev, [targetUserId]: isFollowing }));
-        console.error('Failed to toggle follow status', error);
     }
   };
 

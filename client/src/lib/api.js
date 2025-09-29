@@ -1,6 +1,5 @@
 import { config } from './config';
 
-// Helper to create API URL
 const createApiUrl = (endpoint = '') => {
   const baseUrl = config.api.baseUrl;
   const version = config.api.version;
@@ -8,7 +7,6 @@ const createApiUrl = (endpoint = '') => {
   return `${baseUrl}/api/${version}/${cleanEndpoint}`.replace(/([^:]\/)\/+/g, '$1');
 };
 
-// Helper to create blogs URL with query params
 const getBlogsUrl = (params = {}) => {
   const queryString = Object.entries(params)
     .filter(([_, value]) => value !== undefined && value !== null && value !== '')
@@ -18,16 +16,12 @@ const getBlogsUrl = (params = {}) => {
   return queryString ? `${createApiUrl('blogs')}?${queryString}` : createApiUrl('blogs');
 };
 
-// Helper function to handle API responses
 const handleResponse = async (response) => {
-  // Handle empty responses (like 204 No Content)
   if (response.status === 204) {
     return { success: true };
   }
 
-  // Handle 401 Unauthorized
   if (response.status === 401) {
-    // You might want to handle token refresh or redirect to login here
     const error = new Error('Your session has expired. Please log in again.');
     error.status = 401;
     throw error;
@@ -37,7 +31,6 @@ const handleResponse = async (response) => {
   try {
     data = await response.json();
   } catch (err) {
-    // If we can't parse JSON, it's probably a server error
     const errorText = await response.text();
     const apiError = new Error(`Server error: ${response.status} - ${errorText || 'Unknown error'}`);
     apiError.status = response.status;
@@ -45,7 +38,6 @@ const handleResponse = async (response) => {
   }
   
   if (!response.ok) {
-    // Handle validation errors
     if (response.status === 400 && data.errors) {
       const validationError = new Error('Validation failed');
       validationError.status = 400;
@@ -53,7 +45,6 @@ const handleResponse = async (response) => {
       throw validationError;
     }
     
-    // Handle other errors
     const errorMessage = data.message || 
                        (data.error && typeof data.error === 'string' ? data.error : 'Something went wrong');
     const error = new Error(errorMessage);
@@ -64,7 +55,7 @@ const handleResponse = async (response) => {
 
   return data;
 };
-// Helper function to create request options
+
 const createOptions = (method, data = null, token = null) => {
   const options = {
     method,
@@ -75,15 +66,12 @@ const createOptions = (method, data = null, token = null) => {
     mode: 'cors'
   };
 
-  // Add auth token if provided
   if (token) {
     options.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Add request body if provided
   if (data) {
     if (data instanceof FormData) {
-      // Don't set Content-Type for FormData, let the browser set it with the correct boundary
       delete options.headers['Content-Type'];
       options.body = data;
     } else {
@@ -96,7 +84,6 @@ const createOptions = (method, data = null, token = null) => {
 };
 
 const api = {
-  // Auth endpoints
   login: async (credentials) => {
     try {
       const response = await fetch(
@@ -117,7 +104,6 @@ const api = {
       
       return await response.json();
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   },
@@ -139,7 +125,6 @@ const api = {
       
       return await response.json();
     } catch (error) {
-      console.error('Registration error:', error);
       throw error;
     }
   },
@@ -158,14 +143,11 @@ const api = {
       
       return await response.json();
     } catch (error) {
-      console.error('Logout error:', error);
       throw error;
     }
   },
 
-  // Blog endpoints
   getBlogs: async (params = {}, token = null) => {
-    // If params is a string (legacy support), convert it to an object
     if (typeof params === 'string') {
       const searchParams = new URLSearchParams(
         params.startsWith('?') ? params.slice(1) : params
@@ -176,20 +158,16 @@ const api = {
       });
     }
 
-    // Ensure we always have valid pagination
     const finalParams = {
       page: 1,
-      limit: 100, // Increase limit to fetch all posts
+      limit: 100,
       ...params
     };
 
     const url = getBlogsUrl(finalParams);
-    console.log('Fetching blogs from URL:', url);
     
-    // Create options with token if provided
     const options = createOptions('GET', null, token);
     
-    // Ensure the Authorization header is set if token is provided
     if (token) {
       options.headers = {
         ...options.headers,
@@ -197,10 +175,8 @@ const api = {
       };
     }
     
-    console.log('Request options:', options);
     const response = await fetch(url, options);
     const data = await handleResponse(response);
-    console.log('Fetched blogs data:', data);
     return data;
   },
 
@@ -244,7 +220,6 @@ const api = {
     return handleResponse(response);
   },
 
-  // User endpoints
   getCurrentUser: async (token) => {
     const response = await fetch(
       createApiUrl('users/me'),
@@ -261,7 +236,6 @@ const api = {
     return handleResponse(response);
   },
 
-  // Media uploads
   uploadImage: async (formData, token) => {
     const response = await fetch(createApiUrl('media/upload-image'), {
       method: 'POST',
@@ -309,7 +283,6 @@ const api = {
     return handleResponse(response);
   },
   
-  // User interactions
   followUser: async (userId, token) => {
     const response = await fetch(
       createApiUrl(`users/follow/${userId}`),
@@ -334,7 +307,6 @@ const api = {
     return handleResponse(response);
   },
   
-  // Blog comments
   addComment: async (blogId, content, token) => {
     const response = await fetch(
       createApiUrl(`blogs/${blogId}/comments`),

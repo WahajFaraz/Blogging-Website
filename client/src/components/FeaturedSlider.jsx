@@ -19,7 +19,6 @@ export const FeaturedSlider = () => {
           }
         });
 
-        console.log('Featured blogs response status:', response.status);
         
         if (!response.ok) {
           throw new Error('Failed to fetch featured blogs');
@@ -28,7 +27,6 @@ export const FeaturedSlider = () => {
         const data = await response.json();
         setBlogs(data.blogs || []);
       } catch (err) {
-        console.error('Error fetching featured blogs:', err);
       } finally {
         setLoading(false);
       }

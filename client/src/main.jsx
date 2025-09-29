@@ -14,7 +14,6 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
   }
 
   render() {
@@ -37,24 +36,13 @@ root.render(
   </React.StrictMode>
 );
 
-// Global error handler
 window.addEventListener('error', (event) => {
   const error = event.error || event;
-  console.error('Unhandled error:', {
-    message: error.message,
-    stack: error.stack,
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno
-  });
   
-  // Prevent the default error handler
   event.preventDefault();
   return true;
 });
 
-// Unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
   event.preventDefault();
 });

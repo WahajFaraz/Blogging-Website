@@ -54,52 +54,82 @@ export const Navbar = () => {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
           ? "glass-effect shadow-lg backdrop-blur-xl"
-          : "bg-transparent"
+          : "bg-background/80 backdrop-blur-sm md:bg-transparent"
       }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <motion.div
-            className="flex-shrink-0"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Logo size="default" showText={true} />
-          </motion.div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <motion.div
+              className="flex-shrink-0"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Logo size="default" showText={true} />
+            </motion.div>
+            
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center">
+              <ThemeToggle className="mr-4" />
+              <motion.button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-lg text-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+                aria-expanded="false"
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMobileMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </motion.button>
+            </div>
+          </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
+            <div className="ml-10 flex items-center space-x-1">
               {navItems.map((item) => (
-                <motion.div key={item.name} whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  key={item.name} 
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="relative group"
+                >
                   <Link
                     to={item.path}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
                       location.pathname === item.path
                         ? "bg-gradient-primary text-white shadow-lg"
-                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                        : "text-foreground hover:bg-accent/10 hover:text-accent-foreground"
                     }`}
                   >
                     {item.icon}
-                    <span>{item.name}</span>
+                    <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
+                  <span className={`absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full ${
+                    location.pathname === item.path ? 'w-full' : ''
+                  }`}></span>
                 </motion.div>
               ))}
             </div>
           </div>
 
+          {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <ThemeToggle />
+            <ThemeToggle className="hidden md:block" />
 
             {isAuthenticated ? (
               <div className="relative">
                 <motion.button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-accent/10 hover:text-accent-foreground transition-all duration-200"
+                  whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.95 }}
+                  aria-label="User menu"
                 >
                   <Avatar className="h-8 w-8 rounded-full ring-2 ring-blog-primary/20 shadow-md">
                     <AvatarImage 
@@ -110,45 +140,59 @@ export const Navbar = () => {
                         e.target.style.display = 'none';
                       }}
                     />
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-blog-primary to-blog-secondary text-white font-bold">
-                      {user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || user?.username?.[0]?.toUpperCase()}
+                    <AvatarFallback className="bg-gradient-to-br from-blog-primary to-blog-secondary text-white font-medium">
+                      {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:block">{user?.fullName || user?.username}</span>
                 </motion.button>
 
                 <AnimatePresence>
                   {isUserMenuOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg backdrop-blur-xl z-50"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                     >
-                      <div className="py-2">
+                      <div className="py-1">
                         <Link
                           to="/profile"
+                          className="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center space-x-2 px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                         >
-                          <User className="h-4 w-4" />
-                          <span>Profile</span>
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4" />
+                            <span>Profile</span>
+                          </div>
+                        </Link>
+                        <Link
+                          to="/my-posts"
+                          className="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <BookOpen className="h-4 w-4" />
+                            <span>My Posts</span>
+                          </div>
                         </Link>
                         <Link
                           to="/profile/edit"
+                          className="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center space-x-2 px-4 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                         >
-                          <Settings className="h-4 w-4" />
-                          <span>Settings</span>
+                          <div className="flex items-center space-x-2">
+                            <Settings className="h-4 w-4" />
+                            <span>Settings</span>
+                          </div>
                         </Link>
-                        <hr className="my-2 border-border" />
                         <button
                           onClick={handleLogout}
-                          className="flex items-center space-x-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors w-full text-left"
+                          className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10"
                         >
-                          <LogOut className="h-4 w-4" />
-                          <span>Logout</span>
+                          <div className="flex items-center space-x-2">
+                            <LogOut className="h-4 w-4" />
+                            <span>Logout</span>
+                          </div>
                         </button>
                       </div>
                     </motion.div>
@@ -158,13 +202,17 @@ export const Navbar = () => {
             ) : (
               <div className="flex items-center space-x-2">
                 {authItems.map((item) => (
-                  <motion.div key={item.name} whileHover={{ scale: 1.05 }}>
+                  <motion.div
+                    key={item.name}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
                     <Link
                       to={item.path}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
-                        item.name === "Sign Up"
-                          ? "btn-gradient shadow-lg"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground border border-border"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 ${
+                        location.pathname === item.path
+                          ? 'bg-gradient-primary text-white shadow-lg'
+                          : 'bg-accent/10 text-foreground hover:bg-accent/20'
                       }`}
                     >
                       {item.icon}
@@ -175,98 +223,104 @@ export const Navbar = () => {
               </div>
             )}
           </div>
-
-          <div className="md:hidden flex items-center space-x-2">
-            <ThemeToggle />
-            <motion.button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-lg text-foreground hover:bg-accent hover:text-accent-foreground"
-              whileTap={{ scale: 0.95 }}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </motion.button>
-          </div>
         </div>
-      </div>
 
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass-effect"
-          >
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              {[...navItems, ...authItems].map((item) => (
-                <motion.div
-                  key={item.name}
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <Link
-                    to={item.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      location.pathname === item.path
-                        ? "bg-gradient-primary text-white"
-                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
-                    }`}
+        {/* Mobile menu */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="md:hidden overflow-hidden"
+            >
+              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-background/95 backdrop-blur-lg rounded-lg my-2">
+                {navItems.map((item) => (
+                  <motion.div
+                    key={item.name}
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </Link>
-                </motion.div>
-              ))}
-
-              {isAuthenticated && (
-                <>
-                  <hr className="my-2 border-border/50" />
-                  <div className="px-3 py-2">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <Avatar className="w-10 h-10 border-2 border-border">
-                        <AvatarImage src={user?.avatar?.url} alt={user?.fullName || user?.username} />
-                        <AvatarFallback className="text-sm bg-gradient-to-br from-blog-primary to-blog-secondary text-white">
-                          {user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || user?.username?.slice(0, 2).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{user?.fullName || user?.username}</p>
-                        <p className="text-xs text-muted-foreground">@{user?.username}</p>
+                    <Link
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`block px-3 py-3 rounded-md text-base font-medium ${
+                        location.pathname === item.path
+                          ? 'bg-accent/20 text-accent-foreground'
+                          : 'text-foreground hover:bg-accent/10 hover:text-accent-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        {item.icon}
+                        <span>{item.name}</span>
                       </div>
-                    </div>
+                    </Link>
+                  </motion.div>
+                ))}
+
+                {isAuthenticated ? (
+                  <>
+                    <div className="border-t border-border my-2"></div>
                     <Link
                       to="/profile"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-3 py-2 rounded-lg text-base font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                      className="block px-3 py-3 rounded-md text-base font-medium text-foreground hover:bg-accent/10 hover:text-accent-foreground"
                     >
-                      Profile
+                      <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5" />
+                        <span>Profile</span>
+                      </div>
                     </Link>
                     <Link
                       to="/profile/edit"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-3 py-2 rounded-lg text-base font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                      className="block px-3 py-3 rounded-md text-base font-medium text-foreground hover:bg-accent/10 hover:text-accent-foreground"
                     >
-                      Settings
+                      <div className="flex items-center space-x-2">
+                        <Settings className="h-5 w-5" />
+                        <span>Settings</span>
+                      </div>
                     </Link>
                     <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      onClick={() => {
+                        handleLogout();
+                        navigate('/');
+                      }}
+                      className="w-full text-left px-3 py-3 rounded-md text-base font-medium text-destructive hover:bg-destructive/10"
                     >
-                      Logout
+                      <div className="flex items-center space-x-2">
+                        <LogOut className="h-5 w-5" />
+                        <span>Logout</span>
+                      </div>
                     </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  </>
+                ) : (
+                  <>
+                    <div className="border-t border-border my-2"></div>
+                    {authItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block px-3 py-3 rounded-md text-base font-medium text-foreground hover:bg-accent/10 hover:text-accent-foreground"
+                      >
+                        <div className="flex items-center space-x-2">
+                          {item.icon}
+                          <span>{item.name}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.nav>
   );
 };
+
+export default Navbar;

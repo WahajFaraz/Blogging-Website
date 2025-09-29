@@ -40,44 +40,29 @@ const MyPosts = () => {
         throw new Error('No authentication token or user data found. Please log in again.');
       }
       
-      console.log('Fetching posts for user:', user._id);
-      
-      // Fetch all posts for the current user
+
       const response = await api.getBlogs({ 
         myPosts: 'true',
-        limit: 100 // Fetch more posts to ensure we get all of them
+        limit: 100
       }, token);
       
-      console.log('Fetched posts response:', response);
       
-      // The response should be an object with a data.blogs array and total count
       let postsData = [];
       
       if (response && response.data && Array.isArray(response.data.blogs)) {
-        // If response has a data.blogs array, use that (main route format)
         postsData = response.data.blogs;
-        console.log('Using response.data.blogs format');
       } else if (response && Array.isArray(response.blogs)) {
-        // If response has a blogs array directly, use that (my-posts route format)
         postsData = response.blogs;
-        console.log('Using response.blogs format');
       } else if (Array.isArray(response)) {
-        // If response is directly an array, use it
         postsData = response;
-        console.log('Using direct array format');
       } else if (response && typeof response === 'object') {
-        // If it's a single post object, wrap it in an array
         postsData = [response];
-        console.log('Using single object format');
       }
       
-      console.log('Processed posts data:', postsData);
-      console.log('Number of posts found:', postsData.length);
       setPosts(postsData || []);
       
       setError(null);
     } catch (error) {
-      console.error('Error fetching posts:', error);
       setError(error.message || 'Failed to fetch posts');
       setPosts([]);
     } finally {
@@ -93,7 +78,6 @@ const MyPosts = () => {
       await api.deleteBlog(postId, token);
       setPosts(prev => prev.filter(post => post._id !== postId));
     } catch (error) {
-      console.error('Error deleting post:', error);
       setError(error.message || 'Failed to delete post');
     } finally {
       setDeleting(null);
@@ -108,7 +92,6 @@ const MyPosts = () => {
     });
   };
 
-  // Separate posts into published and drafts
   const publishedPosts = posts.filter(post => post.status === 'published');
   const draftPosts = posts.filter(post => post.status === 'draft');
 
@@ -238,9 +221,7 @@ const MyPosts = () => {
             
             {posts.length > 0 ? (
               <div className="space-y-6">
-                {console.log('Rendering posts:', posts.length, 'posts')}
                 {posts.map((post) => {
-                  console.log('Rendering post:', post._id, post.title);
                   return (
                   <motion.div
                     key={post._id}

@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }) => {
           const userData = await fetchUserProfile(token);
           setUser(userData);
         } catch (error) {
-          console.error('Error loading user:', error);
           localStorage.removeItem('token');
           setToken(null);
         }
@@ -43,17 +42,13 @@ export const AuthProvider = ({ children }) => {
     if (!token) return null;
     
     try {
-      console.log('Fetching user profile with token:', token.substring(0, 10) + '...');
       const user = await api.getCurrentUser(token);
-      console.log('User profile fetched successfully:', user);
       return user;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // Clear invalid token
       if (error.message.includes('401') || error.message.includes('403')) {
         localStorage.removeItem('token');
       }
-      throw error; // Re-throw to be caught by the caller
+      throw error;
     }
   };
 
@@ -70,7 +65,6 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', token);
       
-      // If user data is not in the response, fetch it using the token
       if (!user) {
         const userData = await fetchUserProfile(token);
         setUser(userData);
@@ -82,7 +76,6 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       return user || response.user;
     } catch (err) {
-      console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
       throw err;
     } finally {
@@ -98,18 +91,15 @@ export const AuthProvider = ({ children }) => {
       const isFormData = userData instanceof FormData;
       
       if (isFormData) {
-        // Convert FormData to object for the API
         const formDataObj = {};
         userData.forEach((value, key) => {
           formDataObj[key] = value;
         });
         await api.register(formDataObj);
       } else {
-        // Handle regular form data
         await api.register(userData);
       }
       
-      // On successful registration
       navigate('/login', { 
         state: { 
           message: 'Account created successfully! Please log in to continue.' 
@@ -118,7 +108,6 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
-      console.error('Signup error:', error);
       let errorMessage = 'Signup failed';
       
       if (error.message) {
@@ -147,23 +136,17 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Try to call the server-side logout
       try {
         await api.logout(token);
       } catch (error) {
-        console.error('Error during logout request:', error);
-        // Continue with local logout even if server logout fails
       }
       
-      // Clear local state
       setUser(null);
       setToken(null);
       setError(null);
       localStorage.removeItem('token');
       navigate('/');
     } catch (error) {
-      console.error('Unexpected error during logout:', error);
-      // Ensure we still clear local state and navigate
       setUser(null);
       setToken(null);
       localStorage.removeItem('token');
@@ -184,7 +167,6 @@ export const AuthProvider = ({ children }) => {
       let response;
       
       if (isFormData) {
-        // Handle file upload
         response = await fetch(createApiUrl('users/profile'), {
           method: 'PUT',
           headers: {
@@ -194,7 +176,6 @@ export const AuthProvider = ({ children }) => {
           body: updates
         });
       } else {
-        // Handle regular JSON data
         response = await api.updateProfile(updates, token);
         setUser(response.user || response);
         setError(null);
@@ -219,7 +200,6 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       return { success: true };
     } catch (error) {
-      console.error('Profile update error:', error);
       const errorMessage = error.message.includes('Failed to fetch')
         ? 'Network error. Please check your connection.'
         : error.message || 'Profile update failed. Please try again.';

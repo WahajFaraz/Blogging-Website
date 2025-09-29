@@ -145,7 +145,6 @@ BlogSchema.methods.toggleLike = function(userId) {
     }
     return this.save();
   } catch (error) {
-    console.error('Toggle like error:', error);
     throw error;
   }
 };

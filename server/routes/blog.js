@@ -5,37 +5,29 @@ import { auth, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all published blogs with pagination and filtering
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { page = 1, limit = 10, category, search, sort = 'newest', myPosts } = req.query;
     
-    // Basic pagination
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
     
-    // Base query
     let query = {};
     
-    // If myPosts is true and user is authenticated, get only their posts
     if (myPosts === 'true') {
       if (!req.user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
       query.author = req.user._id;
-      // When viewing myPosts, include both published and draft posts
       query.status = { $in: ['published', 'draft'] };
     } else {
-      // Otherwise, only get published posts
       query.status = 'published';
     }
     
-    // Filter by category if provided
     if (category && category !== 'all') {
       query.category = category;
     }
     
-    // Text search across multiple fields
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
@@ -45,7 +37,6 @@ router.get('/', optionalAuth, async (req, res) => {
       ];
     }
     
-    // Sorting options
     const sortOptions = {
       newest: { publishedAt: -1 },
       oldest: { publishedAt: 1 },
@@ -53,13 +44,11 @@ router.get('/', optionalAuth, async (req, res) => {
       trending: { views: -1 }
     }[sort] || { publishedAt: -1 };
     
-    // Execute query with pagination
     let [blogs, total] = await Promise.all([
       Blog.find(query)
         .populate({
           path: 'author',
           select: 'username fullName avatar',
-          // Ensure we always have a valid avatar URL
           transform: (doc) => {
             if (doc) {
               if (!doc.avatar || !doc.avatar.url) {
@@ -84,7 +73,6 @@ router.get('/', optionalAuth, async (req, res) => {
       Blog.countDocuments(query).exec()
     ]);
     
-    // Ensure all blogs have valid author avatars
     blogs = blogs.map(blog => {
       if (blog.author && (!blog.author.avatar || !blog.author.avatar.url)) {
         blog.author.avatar = {
@@ -98,11 +86,9 @@ router.get('/', optionalAuth, async (req, res) => {
       return blog;
     });
     
-    // Add isLiked flag if user is authenticated
     const blogsWithLiked = blogs.map(blog => {
       const blogObj = { ...blog };
       
-      // Handle missing featured image
       if (!blogObj.featuredImage || !blogObj.featuredImage.url) {
         blogObj.featuredImage = {
           url: 'https://via.placeholder.com/800x450?text=No+Image+Available',
@@ -110,7 +96,6 @@ router.get('/', optionalAuth, async (req, res) => {
         };
       }
       
-      // Handle missing author avatar
       if (blogObj.author && (!blogObj.author.avatar || !blogObj.author.avatar.url)) {
         blogObj.author.avatar = {
           url: 'https://via.placeholder.com/150?text=U',
@@ -118,13 +103,11 @@ router.get('/', optionalAuth, async (req, res) => {
         };
       }
       
-      // Add isLiked flag if user is authenticated
       blogObj.isLiked = req.user ? (blog.likes || []).includes(req.user.id) : false;
       
       return blogObj;
     });
     
-    // Send response
     res.status(200).json({
       success: true,
       data: {
@@ -136,7 +119,6 @@ router.get('/', optionalAuth, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error fetching blogs:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch blogs. Please try again later.'
@@ -144,7 +126,6 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// Get user's own posts - must come before /:id route
 router.get('/my-posts', auth, async (req, res) => {
   try {
     const blogs = await Blog.find({ author: req.user._id })
@@ -153,7 +134,6 @@ router.get('/my-posts', auth, async (req, res) => {
     
     res.json({ blogs });
   } catch (error) {
-    console.error('Get my posts error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -188,7 +168,6 @@ router.get('/:id', optionalAuth, async (req, res) => {
     res.json(blog);
     
   } catch (error) {
-    console.error('Get blog error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -273,7 +252,6 @@ router.post('/', auth, [
     
     const savedBlog = await blog.save();
     
-    // Populate the author field
     const populatedBlog = await Blog.findById(savedBlog._id)
       .populate('author', 'username fullName avatar')
       .lean();
@@ -287,7 +265,6 @@ router.post('/', auth, [
     });
     
   } catch (error) {
-    console.error('Create blog error:', error);
     res.status(500).json({ error: 'Server error during blog creation' });
   }
 });
@@ -392,7 +369,6 @@ router.put('/:id', auth, [
       try {
         await deleteFile(blog.media.public_id);
       } catch (error) {
-        console.error('Error deleting old media:', error);
       }
     }
     
@@ -408,7 +384,6 @@ router.put('/:id', auth, [
     });
     
   } catch (error) {
-    console.error('Update blog error:', error);
     res.status(500).json({ error: 'Server error during blog update' });
   }
 });
@@ -429,7 +404,6 @@ router.delete('/:id', auth, async (req, res) => {
       try {
         await deleteFile(blog.media.public_id);
       } catch (error) {
-        console.error('Error deleting media:', error);
       }
     }
     
@@ -438,7 +412,6 @@ router.delete('/:id', auth, async (req, res) => {
     res.json({ message: 'Blog deleted successfully' });
     
   } catch (error) {
-    console.error('Delete blog error:', error);
     res.status(500).json({ error: 'Server error during blog deletion' });
   }
 });
@@ -464,7 +437,6 @@ router.post('/:id/like', auth, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Toggle like error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -507,7 +479,6 @@ router.post('/:id/comments', auth, [
     });
     
   } catch (error) {
-    console.error('Add comment error:', error);
     res.status(500).json({ error: 'Server error during comment creation' });
   }
 });
@@ -539,7 +510,6 @@ router.get('/user/:userId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Get user blogs error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

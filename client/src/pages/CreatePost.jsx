@@ -223,7 +223,6 @@ const CreatePost = () => {
     setError(null);
 
     try {
-      // Prepare the blog data according to server expectations
       const blogData = {
         title: formData.title,
         content: formData.content,
@@ -240,16 +239,12 @@ const CreatePost = () => {
 
       const response = await api.createBlog(blogData, token);
       
-      // If we get here, the blog was created successfully
       setSuccess(true);
-      // Show success message
       toast.success('Blog created successfully!');
-      // Redirect to the home page after a short delay
       setTimeout(() => {
         navigate('/');
       }, 1500);
     } catch (error) {
-      console.error('Create post error:', error);
       setError(error.message || 'Failed to create blog post. Please check your input and try again.');
     } finally {
       setLoading(false);

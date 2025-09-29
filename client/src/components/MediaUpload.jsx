@@ -135,7 +135,6 @@ export const MediaUpload = ({
       setTimeout(() => setUploadProgress(0), 1000);
 
     } catch (error) {
-      console.error('Upload error:', error);
       setError(error.message);
     } finally {
       setUploading(false);

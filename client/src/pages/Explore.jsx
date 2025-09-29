@@ -21,19 +21,15 @@ const Explore = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Get current page from URL or default to 1
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
   const searchTerm = searchParams.get('search') || '';
   const category = searchParams.get('category') || '';
 
   useEffect(() => {
-    console.log('Component mounted or dependencies changed:', { currentPage, searchTerm, category });
     fetchBlogs();
     fetchCategories();
     
-    // Cleanup function
     return () => {
-      console.log('Cleaning up Explore component');
     };
   }, [currentPage, searchTerm, category]);
 
@@ -48,13 +44,8 @@ const Explore = () => {
         sort: 'newest'
       };
       
-      console.log('Fetching blogs with params:', params);
       const response = await api.getBlogs(params);
-      console.log('API Response:', response);
       
-      // Handle both response formats:
-      // 1. Direct response with blogs array and total count
-      // 2. Response with data object containing blogs and total
       const blogsData = response.blogs || response.data?.blogs || [];
       const totalCount = response.total || response.data?.total || 0;
       
@@ -62,7 +53,6 @@ const Explore = () => {
       setTotalBlogs(Number(totalCount) || 0);
       setTotalPages(Math.ceil((Number(totalCount) || 0) / ITEMS_PER_PAGE));
     } catch (error) {
-      console.error('Error fetching blogs:', error);
     } finally {
       setLoading(false);
     }
@@ -74,7 +64,6 @@ const Explore = () => {
       const uniqueCategories = [...new Set(response.data.blogs.map(blog => blog.category))].filter(Boolean);
       setCategories(uniqueCategories);
     } catch (error) {
-      console.error('Error fetching categories:', error);
     }
   };
 
@@ -82,7 +71,7 @@ const Explore = () => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams);
     params.set('search', searchQuery);
-    params.set('page', '1'); // Reset to first page on new search
+    params.set('page', '1');
     setSearchParams(params);
   };
 
@@ -95,7 +84,7 @@ const Explore = () => {
       params.set('category', category);
       setSelectedCategory(category);
     }
-    params.set('page', '1'); // Reset to first page when changing category
+    params.set('page', '1');
     setSearchParams(params);
   };
 

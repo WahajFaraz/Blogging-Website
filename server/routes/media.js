@@ -39,7 +39,6 @@ router.post('/upload-image', auth, uploadMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Image upload error:', error);
     res.status(500).json({ error: 'Failed to upload image' });
   }
 });
@@ -79,7 +78,6 @@ router.post('/upload-video', auth, uploadMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Video upload error:', error);
     res.status(500).json({ error: 'Failed to upload video' });
   }
 });
@@ -117,7 +115,6 @@ router.post('/upload-avatar', auth, uploadMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Avatar upload error:', error);
     res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
@@ -138,7 +135,6 @@ router.delete('/:public_id', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('File deletion error:', error);
     res.status(500).json({ error: 'Failed to delete file' });
   }
 });
@@ -185,7 +181,6 @@ router.post('/upload-blog-media', auth, uploadMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Blog media upload error:', error);
     res.status(500).json({ error: 'Failed to upload media' });
   }
 });

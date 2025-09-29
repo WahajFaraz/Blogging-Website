@@ -79,10 +79,8 @@ const AuthorProfile = () => {
         }));
       } else {
         const data = await response.json();
-        console.error('Follow/unfollow error:', data.error);
       }
     } catch (error) {
-      console.error('Failed to toggle follow status', error);
     } finally {
       setFollowLoading(false);
     }

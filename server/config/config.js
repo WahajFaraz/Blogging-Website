@@ -15,7 +15,7 @@ const config = {
   },
 
   db: {
-    uri: process.env.MONGODB_URI || "mongodb://localhost:27017/blogspace",
+    uri: process.env.MONGODB_URI,
     options: {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
@@ -32,7 +32,7 @@ const config = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'your_jwt_secret_here',
+    secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRE || '30d',
     cookieExpire: process.env.JWT_COOKIE_EXPIRE || 30,
   },
@@ -53,13 +53,11 @@ const config = {
     },
   },
 
-  // File Uploads
   uploads: {
-    maxFileSize: parseInt(process.env.MAX_FILE_UPLOAD) || 10000000, // 10MB
+    maxFileSize: parseInt(process.env.MAX_FILE_UPLOAD) || 10000000,
     directory: process.env.FILE_UPLOAD_PATH || './public/uploads',
   },
 
-  // Cloudinary Configuration
   cloudinary: {
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -70,19 +68,16 @@ const config = {
     },
   },
 
-  // Rate Limiting
   rateLimit: {
-    windowMs: process.env.RATE_LIMIT_WINDOW_MS ? parseInt(process.env.RATE_LIMIT_WINDOW_MS) : 15 * 60 * 1000, // 15 minutes
-    max: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX) : 100, // limit each IP to 100 requests per windowMs
+    windowMs: process.env.RATE_LIMIT_WINDOW_MS ? parseInt(process.env.RATE_LIMIT_WINDOW_MS) : 15 * 60 * 1000,
+    max: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX) : 100,
   },
 
-  // Logging
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
 };
 
-// Validate required configuration
 const requiredConfigs = [
   { key: 'jwt.secret', value: config.jwt.secret },
   { key: 'cloudinary.cloud_name', value: config.cloudinary.cloud_name },

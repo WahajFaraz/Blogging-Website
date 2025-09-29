@@ -53,7 +53,6 @@ const BlogDetail = () => {
       setBlog(data);
       setError(null);
     } catch (err) {
-      console.error('Error fetching blog post:', err);
       setError(err.message || 'Failed to load blog post');
     } finally {
       setLoading(false);
@@ -75,7 +74,6 @@ const BlogDetail = () => {
         isLiked: data.isLiked
       }));
     } catch (err) {
-      console.error('Error liking post:', err);
       setError(err.message || 'Failed to like post');
     } finally {
       setLiking(false);
@@ -102,7 +100,6 @@ const BlogDetail = () => {
       }));
       setCommentText('');
     } catch (err) {
-      console.error('Error adding comment:', err);
       setError(err.message || 'Failed to add comment');
     } finally {
       setSubmittingComment(false);
@@ -118,7 +115,6 @@ const BlogDetail = () => {
       navigate('/');
       toast.success('Post deleted successfully');
     } catch (err) {
-      console.error('Error deleting post:', err);
       setError(err.message || 'Failed to delete post');
     } finally {
       setDeleting(false);

@@ -89,7 +89,6 @@ const EditPost = () => {
         setError(data.message || 'Failed to fetch post');
       }
     } catch (error) {
-      console.error('Error fetching post:', error);
       setError('Failed to load post. Please try again.');
     } finally {
       setLoading(false);
@@ -220,7 +219,6 @@ const EditPost = () => {
       try {
         data = await response.json();
       } catch (jsonError) {
-        console.error('Error parsing JSON response:', jsonError);
         throw new Error('Invalid response from server');
       }
 
@@ -233,7 +231,6 @@ const EditPost = () => {
         setError(data.message || data.error || 'Failed to update blog post');
       }
     } catch (error) {
-      console.error('Update post error:', error);
       setError('Network error. Please try again.');
     } finally {
       setSaving(false);

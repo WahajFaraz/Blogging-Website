@@ -101,7 +101,6 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    console.error('Password comparison error:', error);
     return false;
   }
 };
@@ -111,7 +110,6 @@ UserSchema.methods.getPublicProfile = function() {
   delete userObject.password;
   delete userObject.__v;
   
-  // Ensure avatar URL is always set
   if (!userObject.avatar || !userObject.avatar.url) {
     userObject.avatar = {
       url: 'https://ui-avatars.com/api/?name=' + 

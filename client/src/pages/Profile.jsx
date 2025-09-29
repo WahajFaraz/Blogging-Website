@@ -122,7 +122,6 @@ const Profile = () => {
         }
       }
     } catch (error) {
-      console.error('Profile update error:', error);
       setError('Failed to update profile');
     } finally {
       setLoading(false);
