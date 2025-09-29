@@ -158,13 +158,13 @@ const BlogCard = ({ blog, index }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Avatar
-                src={blog.author?.avatar}
-                alt={blog.author?.name}
+                src={blog.author?.avatar?.url || blog.author?.avatar}
+                alt={blog.author?.fullName || blog.author?.username || 'Author'}
                 className="h-8 w-8 text-xs"
               />
               <div>
                 <p className="text-sm font-medium leading-none">
-                  {blog.author?.name || 'Unknown Author'}
+                  {blog.author?.fullName || blog.author?.username || 'Unknown Author'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatDate(blog.createdAt)}
